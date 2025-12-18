@@ -1,5 +1,5 @@
 from django.http import HttpResponse
 
 
-def index(request):
-    return HttpResponse("You're at the service index.")
+def idex(request):
+    return HttpResponse("You're at the service indexs.")
