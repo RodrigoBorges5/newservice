@@ -1,7 +1,21 @@
 services:
-  service:
+  backend:
     build: .
+    container_name: newservice-backend
     env_file:
       - .env
     ports:
       - "8000:8000"
+    volumes:
+      # Para desenvolvimento - hot reload
+      - .:/app
+      # Prevenir sobrescrever node_modules/dependências
+      - /app/__pycache__
+    restart: unless-stopped
+    command: python manage.py runserver 0.0.0.0:8000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
