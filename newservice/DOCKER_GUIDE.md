@@ -24,7 +24,6 @@ docker-compose build
 ### Iniciar o Serviço
 
 ```powershell
-# Modo normal
 docker-compose up
 ```
 
@@ -40,6 +39,9 @@ docker-compose exec backend python manage.py createsuperuser
 
 # Shell Django
 docker-compose exec backend python manage.py shell
+
+#Database
+docker-compose exec backend python manage.py dbshell (\dt, \d)
 
 # Bash no container
 docker-compose exec backend bash
