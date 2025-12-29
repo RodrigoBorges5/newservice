@@ -9,5 +9,6 @@ class teste(APIView):
     def get(self, request):
         return Response({
             "status": "ok",
-            "user_id": request.user_id
+            "user_id": request.user_id,
+            "user_role": request.role
         })

@@ -15,4 +15,5 @@ X-User-ID = ID
 {
     "status": "ok",
     "user_id": "ID"
+    "user_role": "tipo de utilizador"
 }
