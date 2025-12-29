@@ -1,5 +1,6 @@
 from django.http import JsonResponse
 from .supabase_client import get_user_role, UserNotFoundError, InvalidUserRoleError
+from rest_framework.permissions import BasePermission
 
 EXCLUDED_PATHS = [
     "/service/",      
@@ -35,3 +36,23 @@ class UserHeaderMiddleware:
         request.role = role
 
         return self.get_response(request)
+
+class IsStudent(BasePermission):
+    message = "Não possui permição para efetuar esta ação."
+
+    def has_permission(self, request, view):
+        return getattr(request, "role", None) == 2
+
+
+class IsCompany(BasePermission):
+    message = "Não possui permição para efetuar esta ação."
+
+    def has_permission(self, request, view):
+        return getattr(request, "role", None) == 1
+
+
+class IsCR(BasePermission):
+    message = "Não possui permição para efetuar esta ação."
+
+    def has_permission(self, request, view):
+        return getattr(request, "role", None) == 0
