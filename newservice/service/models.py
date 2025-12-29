@@ -212,9 +212,16 @@ class Utilizador(models.Model):
 
 
 class Vaga(models.Model):
+    
+    OPORTUNIDADE_CHOICES = [
+        ('estagio', 'Estágio'),
+        ('emprego', 'Emprego'),
+        ('projeto', 'Projeto'),
+    ]
+    
     nome = models.CharField(unique=True, max_length=512, blank=True, null=True)
     descricao = models.TextField(blank=True, null=True)
-    oportunidade = models.CharField(max_length=512, blank=True, null=True)
+    oportunidade = models.CharField(max_length=512, blank=True, null=True, choices=OPORTUNIDADE_CHOICES,)
     visualizacoes = models.IntegerField(blank=True, null=True)
     candidaturas = models.IntegerField(blank=True, null=True)
     empresa_utilizador_auth_user_supabase_field = models.ForeignKey(Empresa, models.DO_NOTHING, db_column='empresa_utilizador_auth_user_supabase__id')  # Field renamed because it ended with '_'.
