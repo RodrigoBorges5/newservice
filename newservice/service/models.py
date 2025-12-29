@@ -166,7 +166,7 @@ class DjangoSession(models.Model):
 
 
 class Empresa(models.Model):
-    tipo = models.SmallIntegerField(blank=True, null=True)
+    tipo = models.SmallIntegerField(blank=True, null=True, default=1)
     localizacao = models.CharField(max_length=512, blank=True, null=True)
     website = models.CharField(max_length=512, blank=True, null=True)
     utilizador_auth_user_supabase_field = models.OneToOneField('Utilizador', models.DO_NOTHING, db_column='utilizador_auth_user_supabase__id', primary_key=True)  # Field renamed because it ended with '_'.
