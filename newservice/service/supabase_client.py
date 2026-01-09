@@ -1,6 +1,5 @@
 from requests.exceptions import RequestException, Timeout
 from supabase import create_client, Client
-from postgrest.exceptions import APIError
 import os
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -26,8 +25,7 @@ def get_user_role(user_id):
     try:
         response = supabase.table("utilizador").select("tipo").eq("auth_user_supabase__id", user_id).maybe_single().execute()
 
-        # maybe_single() retorna None quando não há resultados
-        if not response or not response.data:
+        if not response:
             raise UserNotFoundError(f"Usuário {user_id} não existe")
         
         user_data = response.data
@@ -38,9 +36,6 @@ def get_user_role(user_id):
 
         return role
 
-    except APIError as e:
-        # APIError do Postgrest quando não encontra resultados ou há erro na query
-        raise UserNotFoundError(f"Usuário {user_id} não existe")
     except (RequestException, Timeout) as e:
         # Tratamento de rede/timeout
         raise ConnectionError(f"Falha ao conectar com Supabase: {str(e)}")
