@@ -21,6 +21,9 @@ class CurriculoSerializer(serializers.ModelSerializer):
             'estudante_utilizador_auth_user_supabase_field'
         ]
         read_only_fields = ['id', 'status', 'validated_date']
+        extra_kwargs = {
+            'file': {'required': True, 'allow_blank': False}
+        }
     
     def validate(self, attrs):
         """
