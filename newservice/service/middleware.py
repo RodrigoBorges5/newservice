@@ -74,4 +74,4 @@ class IsCompanyOrReadOnly(BasePermission):
             return role in [0, 1, 2]  # CR, Company, Student
         
         # métodos de escrita (POST, PUT, PATCH, DELETE): apenas Company
-        return role == 1
+        return role == 1 #criar
