@@ -104,7 +104,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
                 )
             except Exception as e:
                 return Response(
-                    {"detail": "Erro ao submeter currículo: deves aceitar share."},
+                    {"detail": "Erro ao submeter currículo: deves aceitar."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
         
