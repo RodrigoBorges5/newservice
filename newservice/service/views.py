@@ -32,7 +32,9 @@ class CurriculoViewSet(viewsets.ModelViewSet):
     
     Endpoints:
     - GET curriculo/me/ - Retorna o CV do estudante autenticado
+
     - POST curriculo/me/ - Cria um novo CV para o estudante autenticado
+    
     - DELETE curriculo/me/ - Remove o CV do estudante autenticado
     
     Permissões: 
@@ -45,8 +47,10 @@ class CurriculoViewSet(viewsets.ModelViewSet):
         """
         permissões baseadas na ação e role do usuário.
 
+        
         IsStudent: Pode gerir o seu próprio CV. (GET, POST, DELETE em /curriculo/me/)
         
+
         """
         if self.action == 'get_my_cv':
             # Estudante acede ao seu próprio CV
@@ -123,7 +127,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
         if request.method == 'DELETE':
             self.perform_destroy(curriculo)
             return Response(
-                {"message": "Currículo eliminado com sucesso."},
+                {"message": "Currículo eliminado com sucesso. Crie novo CV se desejar."},
                 status=status.HTTP_204_NO_CONTENT
             )
         
