@@ -1,13 +1,22 @@
+from django.urls import path
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+
 from . import views
 
-# configurar router para ViewSets (cria as rotas automaticamente)
-router = DefaultRouter()
-router.register(r'vagas', views.VagaViewSet, basename='vaga')
-
+# Router para ViewSets
+routercv = DefaultRouter()
+routervaga = DefaultRouter()
+routercv.register(r'curriculo', views.CurriculoViewSet, basename='curriculo')
+routervaga.register(r'vagas', views.VagaViewSet, basename='vaga')
 urlpatterns = [
     path("", views.idex, name="idex"),
     path("teste/", views.teste.as_view(), name="test"),
-    path("", include(router.urls)),  # Adiciona rotas do router
-]
+    
+    # Incluir rotas do router
+   ]
+
+
+
+urlpatterns += routercv.urls
+urlpatterns += routervaga.urls
