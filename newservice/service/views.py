@@ -31,6 +31,7 @@ class VagaViewSet(viewsets.ModelViewSet):
     
     endpoints:
     - GET /vagas/ - Lista todas as vagas
+    - GET /vagas/?mine=true - Lista apenas vagas da empresa logada
     - POST /vagas/ - Cria nova vaga (apenas empresas)
     - GET /vagas/{id}/ - Detalhes de uma vaga
     - PUT/PATCH /vagas/{id}/ - Atualiza vaga (apenas empresas)
@@ -39,4 +40,23 @@ class VagaViewSet(viewsets.ModelViewSet):
     queryset = Vaga.objects.all()
     serializer_class = VagaSerializer
     permission_classes = [IsCompanyOrReadOnly]
+    
+    def get_queryset(self):
+        """
+        Filtra vagas baseado em query params.
+        
+        Query params:
+        - mine=true: Retorna apenas vagas da empresa logada
+        """
+        queryset = Vaga.objects.all()
+        
+        # Filtro "minhas vagas"
+        mine = self.request.query_params.get('mine', None)
+        if mine == 'true':
+            # Filtra vagas pela empresa do user_id no header
+            queryset = queryset.filter(
+                empresa_utilizador_auth_user_supabase_field=self.request.user_id
+            )
+        
+        return queryset
     
