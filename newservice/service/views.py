@@ -41,6 +41,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
     - Student (role=2): Pode visualizar, criar, atualizar e deletar seu próprio CV
     """
     serializer_class = CurriculoSerializer
+    
     queryset = Curriculo.objects.all()
     
     def get_permissions(self):
