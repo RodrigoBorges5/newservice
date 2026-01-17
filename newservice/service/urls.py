@@ -5,8 +5,10 @@ from rest_framework.routers import DefaultRouter
 from . import views
 
 # Router para ViewSets
-router = DefaultRouter()
-router.register(r'curriculo', views.CurriculoViewSet, basename='curriculo')
+routercv = DefaultRouter()
+routervaga = DefaultRouter()
+routercv.register(r'curriculo', views.CurriculoViewSet, basename='curriculo')
+routervaga.register(r'vagas', views.VagaViewSet, basename='vaga')
 urlpatterns = [
     path("", views.idex, name="idex"),
     path("teste/", views.teste.as_view(), name="test"),
@@ -16,4 +18,5 @@ urlpatterns = [
 
 
 
-urlpatterns += router.urls
+urlpatterns += routercv.urls
+urlpatterns += routervaga.urls

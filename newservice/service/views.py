@@ -4,10 +4,9 @@ from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import BasePermission
-from .middleware import IsCompany, IsCR, IsStudent
-from .models import Curriculo, Estudante
-from .serializers import CurriculoSerializer
-
+from .middleware import IsCompany, IsCR, IsStudent, IsCompanyOrReadOnly
+from .models import Curriculo, Estudante, Vaga
+from .serializers import CurriculoSerializer, VagaSerializer
 
 
 
@@ -137,4 +136,42 @@ class CurriculoViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     
+class VagaViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para CRUD de vagas.
+    
+    permissões:
+    - Empresas (role=1): Podem criar, editar, apagar e listar vagas
+    - CR (role=0) e Estudantes (role=2): Apenas podem listar vagas
+    
+    endpoints:
+    - GET /vagas/ - Lista todas as vagas
+    - GET /vagas/?mine=true - Lista apenas vagas da empresa logada
+    - POST /vagas/ - Cria nova vaga (apenas empresas)
+    - GET /vagas/{id}/ - Detalhes de uma vaga
+    - PUT/PATCH /vagas/{id}/ - Atualiza vaga (apenas empresas)
+    - DELETE /vagas/{id}/ - Remove vaga (apenas empresas)
+    """
+    queryset = Vaga.objects.all()
+    serializer_class = VagaSerializer
+    permission_classes = [IsCompanyOrReadOnly]
+    
+    def get_queryset(self):
+        """
+        Filtra vagas baseado em query params.
+        
+        Query params:
+        - mine=true: Retorna apenas vagas da empresa logada
+        """
+        queryset = Vaga.objects.all()
+        
+        # Filtro "minhas vagas"
+        mine = self.request.query_params.get('mine', None)
+        if mine == 'true':
+            # Filtra vagas pela empresa do user_id no header
+            queryset = queryset.filter(
+                empresa_utilizador_auth_user_supabase_field=self.request.user_id
+            )
+        
+        return queryset
     

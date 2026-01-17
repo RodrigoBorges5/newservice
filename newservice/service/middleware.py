@@ -56,3 +56,22 @@ class IsCR(BasePermission):
 
     def has_permission(self, request, view):
         return getattr(request, "role", None) == 0
+
+
+class IsCompanyOrReadOnly(BasePermission):
+    """
+    Permite:
+    - Empresas (role=1): CRUD completo (GET, POST, PUT, PATCH, DELETE)
+    - CR (role=0) e Estudantes (role=2): apenas leitura (listagem) (GET, HEAD, OPTIONS)
+    """
+    message = "Não possui permissão para efetuar esta ação. Apenas empresas podem criar, editar ou remover vagas."
+
+    def has_permission(self, request, view):
+        role = getattr(request, "role", None)
+        
+        # métodos seguros (leitura): CR e Student podem aceder
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return role in [0, 1, 2]  # CR, Company, Student
+        
+        # métodos de escrita (POST, PUT, PATCH, DELETE): apenas Company
+        return role == 1

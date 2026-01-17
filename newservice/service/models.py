@@ -166,10 +166,17 @@ class DjangoSession(models.Model):
 
 
 class Empresa(models.Model):
-    tipo = models.SmallIntegerField(blank=True, null=True)
+    tipo = models.SmallIntegerField(blank=True, null=True, default=1)
     localizacao = models.CharField(max_length=512, blank=True, null=True)
     website = models.CharField(max_length=512, blank=True, null=True)
     utilizador_auth_user_supabase_field = models.OneToOneField('Utilizador', models.DO_NOTHING, db_column='utilizador_auth_user_supabase__id', primary_key=True)  # Field renamed because it ended with '_'.
+    # relacao n:n com Area através da tabela EmpresaArea
+    areas = models.ManyToManyField(
+        'Area',
+        through='EmpresaArea',
+        through_fields=('empresa_utilizador_auth_user_supabase_field', 'area'),
+        related_name='empresas',
+    )
 
     class Meta:
         managed = False
@@ -177,13 +184,17 @@ class Empresa(models.Model):
 
 
 class EmpresaArea(models.Model):
-    pk = models.CompositePrimaryKey('empresa_utilizador_auth_user_supabase_field', 'area')
-    empresa_utilizador_auth_user_supabase_field = models.ForeignKey(Empresa, models.DO_NOTHING, db_column='empresa_utilizador_auth_user_supabase__id')  # Field renamed because it ended with '_'.
+    empresa_utilizador_auth_user_supabase_field = models.ForeignKey(
+        Empresa,
+        models.DO_NOTHING,
+        db_column='empresa_utilizador_auth_user_supabase__id',
+    )
     area = models.ForeignKey(Area, models.DO_NOTHING)
 
     class Meta:
         managed = False
         db_table = 'empresa_area'
+        unique_together = (('empresa_utilizador_auth_user_supabase_field', 'area'),)
 
 
 class Estudante(models.Model):
@@ -212,9 +223,16 @@ class Utilizador(models.Model):
 
 
 class Vaga(models.Model):
+    
+    OPORTUNIDADE_CHOICES = [
+        ('estagio', 'Estágio'),
+        ('emprego', 'Emprego'),
+        ('projeto', 'Projeto'),
+    ]
+    
     nome = models.CharField(unique=True, max_length=512, blank=True, null=True)
     descricao = models.TextField(blank=True, null=True)
-    oportunidade = models.CharField(max_length=512, blank=True, null=True)
+    oportunidade = models.CharField(max_length=512, blank=True, null=True, choices=OPORTUNIDADE_CHOICES,)
     visualizacoes = models.IntegerField(blank=True, null=True)
     candidaturas = models.IntegerField(blank=True, null=True)
     empresa_utilizador_auth_user_supabase_field = models.ForeignKey(Empresa, models.DO_NOTHING, db_column='empresa_utilizador_auth_user_supabase__id')  # Field renamed because it ended with '_'.
