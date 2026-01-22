@@ -55,6 +55,9 @@ class CurriculoViewSet(viewsets.ModelViewSet):
         if self.action == 'get_my_cv':
             # Estudante acede ao seu próprio CV
             permission_classes = [IsStudent]
+        else:
+            # Bloquear acesso aos endpoints padrão do viewset
+            permission_classes = []
                
         return [permission() for permission in permission_classes]
        
