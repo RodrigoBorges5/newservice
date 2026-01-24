@@ -1,0 +1,1352 @@
+{
+  "info": {
+    "_postman_id": "59d27e57-2cb3-4c78-b499-c1bcf38a5eb0",
+    "name": "Vagas API - NewService",
+    "description": "Collection completa para testar CRUD de Vagas com permissões.\n\nPermissões:\n- CR (role=0): CRUD completo (admin) - pode modificar/deletar QUALQUER vaga\n- Empresa (role=1): CRUD próprio - pode modificar/deletar apenas SUAS vagas\n- Estudante (role=2): Apenas leitura",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "30168718"
+  },
+  "item": [
+    {
+      "name": "Listagem",
+      "item": [
+        {
+          "name": "Listar Todas as Vagas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ]
+            },
+            "description": "Lista todas as vagas (paginadas).\n\nPermissões: Todos (CR, Empresa, Estudante)\n\nResposta paginada com count, next, previous e results."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Minhas Vagas (mine=true)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{empresa_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/?mine=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "mine",
+                  "value": "true",
+                  "description": "Filtra vagas da empresa logada"
+                }
+              ]
+            },
+            "description": "Retorna apenas vagas da empresa com user_id igual ao header.\n\nPermissões: Todos (filtra pelo user_id)"
+          },
+          "response": []
+        },
+        {
+          "name": "Ver Detalhes de Uma Vaga",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/1/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                "1",
+                ""
+              ]
+            },
+            "description": "Visualiza detalhes de uma vaga específica.\n\nPermissões: Todos (CR, Empresa, Estudante)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Filtros",
+      "item": [
+        {
+          "name": "Filtrar por Oportunidade (estagio)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/?oportunidade=estagio",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "oportunidade",
+                  "value": "estagio",
+                  "description": "Tipo de oportunidade (case-insensitive)"
+                }
+              ]
+            },
+            "description": "Filtra vagas por tipo de oportunidade.\n\nCase-insensitive: 'estagio', 'ESTAGIO', 'Estagio' funcionam igual.\n\nValores: estagio, emprego, projeto"
+          },
+          "response": []
+        },
+        {
+          "name": "Filtrar por Oportunidade (EMPREGO - Case Test)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/?oportunidade=EMPREGO",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "oportunidade",
+                  "value": "EMPREGO",
+                  "description": "Teste case-insensitive (maiúsculas)"
+                }
+              ]
+            },
+            "description": "Testa case-insensitivity do filtro de oportunidade.\n\nDeve retornar mesmo resultado que 'emprego'."
+          },
+          "response": []
+        },
+        {
+          "name": "Filtrar por Área (única)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/?area=Python",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "area",
+                  "value": "Python",
+                  "description": "Nome da área (case-insensitive)"
+                }
+              ]
+            },
+            "description": "Filtra vagas por uma área específica.\n\nFiltra pelo NOME da área (não pelo ID).\n\nCase-insensitive: 'python', 'PYTHON', 'Python' funcionam igual."
+          },
+          "response": []
+        },
+        {
+          "name": "Filtrar por Múltiplas Áreas (OR)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/?area=Python,Django,React",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "area",
+                  "value": "Python,Django,React",
+                  "description": "Múltiplas áreas separadas por vírgula"
+                }
+              ]
+            },
+            "description": "Filtra vagas que tenham PELO MENOS UMA das áreas especificadas.\n\nModo OR é o padrão.\n\nÁreas separadas por vírgula."
+          },
+          "response": []
+        },
+        {
+          "name": "Filtrar por Múltiplas Áreas (AND)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/?area=Python,Django&area_match=and",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "area",
+                  "value": "Python,Django",
+                  "description": "Múltiplas áreas"
+                },
+                {
+                  "key": "area_match",
+                  "value": "and",
+                  "description": "Modo de correspondência: 'and' ou 'or'"
+                }
+              ]
+            },
+            "description": "Filtra vagas que tenham TODAS as áreas especificadas.\n\narea_match=and exige que a vaga tenha todas as áreas."
+          },
+          "response": []
+        },
+        {
+          "name": "Filtrar por Visualizações (Mínimo)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/?visualizacoes_min=100",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "visualizacoes_min",
+                  "value": "100",
+                  "description": "Mínimo de visualizações (>=)"
+                }
+              ]
+            },
+            "description": "Filtra vagas com pelo menos N visualizações."
+          },
+          "response": []
+        },
+        {
+          "name": "Filtrar por Visualizações (Range)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/?visualizacoes_min=50&visualizacoes_max=200",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "visualizacoes_min",
+                  "value": "50",
+                  "description": "Mínimo de visualizações"
+                },
+                {
+                  "key": "visualizacoes_max",
+                  "value": "200",
+                  "description": "Máximo de visualizações"
+                }
+              ]
+            },
+            "description": "Filtra vagas dentro de um range de visualizações."
+          },
+          "response": []
+        },
+        {
+          "name": "Filtros Combinados",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/?oportunidade=estagio&area=Python,Django&area_match=and&visualizacoes_min=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "oportunidade",
+                  "value": "estagio",
+                  "description": "Tipo de oportunidade"
+                },
+                {
+                  "key": "area",
+                  "value": "Python,Django",
+                  "description": "Áreas requeridas"
+                },
+                {
+                  "key": "area_match",
+                  "value": "and",
+                  "description": "Exigir todas as áreas"
+                },
+                {
+                  "key": "visualizacoes_min",
+                  "value": "10",
+                  "description": "Mínimo de visualizações"
+                }
+              ]
+            },
+            "description": "Exemplo de combinação de todos os filtros.\n\nResultado: Estágios com Python E Django, com pelo menos 10 visualizações."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Paginação e Ordenação",
+      "item": [
+        {
+          "name": "Paginação - Página 1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/?page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Número da página"
+                }
+              ]
+            },
+            "description": "Retorna a primeira página de resultados.\n\nResposta inclui: count, next, previous, results."
+          },
+          "response": []
+        },
+        {
+          "name": "Paginação - Page Size Customizado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/?page=1&page_size=5",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Página"
+                },
+                {
+                  "key": "page_size",
+                  "value": "5",
+                  "description": "Itens por página (padrão: 20)"
+                }
+              ]
+            },
+            "description": "Define quantidade de itens por página.\n\nValor padrão: 20."
+          },
+          "response": []
+        },
+        {
+          "name": "Ordenação por Nome (ASC)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/?ordering=nome",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "ordering",
+                  "value": "nome",
+                  "description": "Campo para ordenação"
+                }
+              ]
+            },
+            "description": "Ordena vagas por nome alfabeticamente (A-Z).\n\nCampos disponíveis: id, nome, visualizacoes, candidaturas."
+          },
+          "response": []
+        },
+        {
+          "name": "Ordenação por Visualizações (DESC)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/?ordering=-visualizacoes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "ordering",
+                  "value": "-visualizacoes",
+                  "description": "Prefixo - indica ordem descendente"
+                }
+              ]
+            },
+            "description": "Ordena vagas por visualizações (mais populares primeiro).\n\nPrefixo '-' inverte a ordenação (descendente)."
+          },
+          "response": []
+        },
+        {
+          "name": "Ordenação + Paginação + Filtros",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{user_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/?oportunidade=emprego&ordering=-visualizacoes&page=1&page_size=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "oportunidade",
+                  "value": "emprego",
+                  "description": "Filtro por oportunidade"
+                },
+                {
+                  "key": "ordering",
+                  "value": "-visualizacoes",
+                  "description": "Mais visualizados primeiro"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Página"
+                },
+                {
+                  "key": "page_size",
+                  "value": "10",
+                  "description": "10 itens por página"
+                }
+              ]
+            },
+            "description": "Exemplo completo: Empregos mais populares, 10 por página.\n\nCombina filtros, ordenação e paginação."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Criar Vagas (Empresa)",
+      "item": [
+        {
+          "name": "Criar Vaga Simples",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{empresa_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Desenvolvedor Python Senior\",\n    \"descricao\": \"Vaga para desenvolvedor backend com experiência em Django\",\n    \"oportunidade\": \"emprego\",\n    \"empresa_utilizador_auth_user_supabase_field\": \"{{empresa_uuid}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ]
+            },
+            "description": "Cria vaga sem áreas.\n\nPermissões: CR e Empresa"
+          },
+          "response": []
+        },
+        {
+          "name": "Criar Vaga com Áreas (por nome)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{empresa_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Frontend Developer\",\n    \"descricao\": \"Vaga para desenvolvedor frontend React\",\n    \"oportunidade\": \"emprego\",\n    \"empresa_utilizador_auth_user_supabase_field\": \"{{empresa_uuid}}\",\n    \"areas\": [\n        {\"nome\": \"Frontend\"},\n        {\"nome\": \"React\"},\n        {\"nome\": \"JavaScript\"}\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ]
+            },
+            "description": "Cria vaga com áreas identificadas por nome.\n\nPermissões: CR e Empresa"
+          },
+          "response": []
+        },
+        {
+          "name": "Criar Vaga com Áreas (por ID)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{empresa_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"DevOps Engineer\",\n    \"descricao\": \"Vaga para DevOps com experiência em cloud\",\n    \"oportunidade\": \"emprego\",\n    \"empresa_utilizador_auth_user_supabase_field\": \"{{empresa_uuid}}\",\n    \"areas\": [\n        {\"id\": 1},\n        {\"id\": 5}\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ]
+            },
+            "description": "Cria vaga usando IDs de áreas existentes.\n\nPermissões: CR e Empresa"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "CR Admin Actions",
+      "item": [
+        {
+          "name": "CR - Listar Todas as Vagas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{cr_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ]
+            },
+            "description": "CR lista todas as vagas.\n\nPermissão: CR (role=0) - CRUD completo"
+          },
+          "response": []
+        },
+        {
+          "name": "CR - Criar Vaga",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{cr_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Vaga Criada por CR\",\n    \"descricao\": \"CR tem permissões admin para criar vagas\",\n    \"oportunidade\": \"estagio\",\n    \"empresa_utilizador_auth_user_supabase_field\": \"{{empresa_uuid}}\",\n    \"areas\": [\n        {\"nome\": \"Administração\"}\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ]
+            },
+            "description": "CR cria vaga em nome de uma empresa.\n\nPermissão: CR (role=0) - CRUD completo"
+          },
+          "response": []
+        },
+        {
+          "name": "CR - Atualizar Vaga (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{cr_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Vaga Atualizada por CR\",\n    \"descricao\": \"CR tem permissões admin para editar qualquer vaga\",\n    \"oportunidade\": \"emprego\",\n    \"empresa_utilizador_auth_user_supabase_field\": \"{{empresa_uuid}}\",\n    \"areas\": [\n        {\"nome\": \"Backend\"},\n        {\"nome\": \"Python\"}\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/1/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                "1",
+                ""
+              ]
+            },
+            "description": "CR atualiza vaga completa.\n\nPermissão: CR (role=0) - CRUD completo"
+          },
+          "response": []
+        },
+        {
+          "name": "CR - Atualizar Vaga (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{cr_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Nome Atualizado por CR\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/1/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                "1",
+                ""
+              ]
+            },
+            "description": "CR atualiza vaga parcialmente.\n\nPermissão: CR (role=0) - CRUD completo"
+          },
+          "response": []
+        },
+        {
+          "name": "CR - Deletar Vaga",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{cr_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/1/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                "1",
+                ""
+              ]
+            },
+            "description": "CR deleta qualquer vaga.\n\nPermissão: CR (role=0) - CRUD completo"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Atualizar Vagas (Empresa)",
+      "item": [
+        {
+          "name": "Atualizar Vaga Completa (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{empresa_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Senior Python Developer (ATUALIZADO)\",\n    \"descricao\": \"Nova descrição completa da vaga\",\n    \"oportunidade\": \"emprego\",\n    \"empresa_utilizador_auth_user_supabase_field\": \"{{empresa_uuid}}\",\n    \"areas\": [\n        {\"nome\": \"Backend\"},\n        {\"nome\": \"Python\"},\n        {\"nome\": \"Django\"}\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/1/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                "1",
+                ""
+              ]
+            },
+            "description": "Atualização completa da vaga.\n\nPermissões: CR e Empresa"
+          },
+          "response": []
+        },
+        {
+          "name": "Atualizar Vaga Parcial (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{empresa_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Nome Atualizado Apenas\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/1/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                "1",
+                ""
+              ]
+            },
+            "description": "Atualização parcial (apenas campos enviados).\n\nPermissões: CR e Empresa"
+          },
+          "response": []
+        },
+        {
+          "name": "Atualizar Apenas Áreas",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{empresa_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"areas\": [\n        {\"nome\": \"Docker\"},\n        {\"nome\": \"Kubernetes\"},\n        {\"nome\": \"AWS\"}\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/1/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                "1",
+                ""
+              ]
+            },
+            "description": "Atualiza apenas as áreas.\n\nPermissões: CR e Empresa"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Testes de Permissão",
+      "item": [
+        {
+          "name": "❌ Estudante Tenta Criar (Bloqueado)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{estudante_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Tentativa de Criar\",\n    \"descricao\": \"Deve ser bloqueado\",\n    \"oportunidade\": \"emprego\",\n    \"empresa_utilizador_auth_user_supabase_field\": \"{{estudante_uuid}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ]
+            },
+            "description": "Deve retornar 403 Forbidden.\n\nEstudantes NÃO podem criar vagas."
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Estudante Tenta Editar (Bloqueado)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{estudante_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Tentativa de Editar\",\n    \"descricao\": \"Deve ser bloqueado\",\n    \"oportunidade\": \"emprego\",\n    \"empresa_utilizador_auth_user_supabase_field\": \"{{estudante_uuid}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/1/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                "1",
+                ""
+              ]
+            },
+            "description": "Deve retornar 403 Forbidden.\n\nEstudantes NÃO podem editar vagas."
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Estudante Tenta Remover(Bloqueado)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{estudante_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/1/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                "1",
+                ""
+              ]
+            },
+            "description": "Deve retornar 403 Forbidden.\n\nEstudantes NÃO podem deletar vagas."
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Sem Header X-User-ID (Bloqueado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/vagas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ]
+            },
+            "description": "Deve retornar 401 Unauthorized.\n\nHeader X-User-ID é obrigatório."
+          },
+          "response": []
+        },
+        {
+          "name": "✅ Estudante Lista Vagas (Permitido)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{estudante_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ]
+            },
+            "description": "Deve retornar 200 OK.\n\nEstudantes podem listar vagas."
+          },
+          "response": []
+        },
+        {
+          "name": "✅ CR Lista Vagas (Permitido)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{cr_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ]
+            },
+            "description": "Deve retornar 200 OK.\n\nCR pode listar vagas (e tem CRUD completo)."
+          },
+          "response": []
+        },
+        {
+          "name": "✅ CR Cria Vaga (Permitido)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{cr_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Vaga de Teste CR\",\n    \"descricao\": \"CR pode criar vagas\",\n    \"oportunidade\": \"projeto\",\n    \"empresa_utilizador_auth_user_supabase_field\": \"{{empresa_uuid}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                ""
+              ]
+            },
+            "description": "Deve retornar 201 Created.\n\nCR tem permissões admin (CRUD completo)."
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Empresa Tenta Editar Vaga de Outra (Bloqueado)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{empresa_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Tentativa de Editar Vaga de Outro\",\n    \"descricao\": \"Deve ser bloqueado\",\n    \"oportunidade\": \"emprego\",\n    \"empresa_utilizador_auth_user_supabase_field\": \"{{empresa_uuid}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/{{vaga_outra_empresa_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                "{{vaga_outra_empresa_id}}",
+                ""
+              ]
+            },
+            "description": "Deve retornar 403 Forbidden.\n\nEmpresas NÃO podem editar vagas de outras empresas.\n\nUse o ID de uma vaga que pertence a outra empresa."
+          },
+          "response": []
+        },
+        {
+          "name": "❌ Empresa Tenta Remover Vaga de Outra (Bloqueado)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{empresa_uuid}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/vagas/{{vaga_outra_empresa_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                "{{vaga_outra_empresa_id}}",
+                ""
+              ]
+            },
+            "description": "Deve retornar 403 Forbidden.\n\nEmpresas NÃO podem deletar vagas de outras empresas.\n\nUse o ID de uma vaga que pertence a outra empresa."
+          },
+          "response": []
+        },
+        {
+          "name": "✅ Empresa Edita Sua Própria Vaga (Permitido)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{empresa_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Vaga Editada pelo Dono\",\n    \"descricao\": \"Empresa pode editar suas próprias vagas\",\n    \"oportunidade\": \"emprego\",\n    \"empresa_utilizador_auth_user_supabase_field\": \"{{empresa_uuid}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/{{vaga_propria_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                "{{vaga_propria_id}}",
+                ""
+              ]
+            },
+            "description": "Deve retornar 200 OK.\n\nEmpresas podem editar suas próprias vagas.\n\nUse o ID de uma vaga que pertence à empresa no header."
+          },
+          "response": []
+        },
+        {
+          "name": "✅ CR Edita Vaga de Qualquer Empresa (Permitido)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-User-ID",
+                "value": "{{cr_uuid}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nome\": \"Vaga Editada pelo CR\",\n    \"descricao\": \"CR pode editar qualquer vaga (admin)\",\n    \"oportunidade\": \"estagio\",\n    \"empresa_utilizador_auth_user_supabase_field\": \"{{empresa_uuid}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vagas/{{vaga_outra_empresa_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "vagas",
+                "{{vaga_outra_empresa_id}}",
+                ""
+              ]
+            },
+            "description": "Deve retornar 200 OK.\n\nCR tem permissões admin e pode editar qualquer vaga."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Remover Vaga",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "X-User-ID",
+            "value": "{{empresa_uuid}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/vagas/1/",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "vagas",
+            "1",
+            ""
+          ]
+        },
+        "description": "Deleta uma vaga.\n\nPermissões: CR e Empresa"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/service",
+      "type": "string"
+    },
+    {
+      "key": "user_uuid",
+      "value": "your-user-uuid-here",
+      "type": "string"
+    },
+    {
+      "key": "empresa_uuid",
+      "value": "your-empresa-uuid-here",
+      "type": "string"
+    },
+    {
+      "key": "empresa2_uuid",
+      "value": "uuid-outra-empresa-here",
+      "type": "string",
+      "description": "UUID de outra empresa para testes de propriedade"
+    },
+    {
+      "key": "estudante_uuid",
+      "value": "your-estudante-uuid-here",
+      "type": "string"
+    },
+    {
+      "key": "cr_uuid",
+      "value": "your-cr-uuid-here",
+      "type": "string"
+    },
+    {
+      "key": "vaga_propria_id",
+      "value": "1",
+      "type": "string",
+      "description": "ID de uma vaga que pertence à empresa em empresa_uuid"
+    },
+    {
+      "key": "vaga_outra_empresa_id",
+      "value": "2",
+      "type": "string",
+      "description": "ID de uma vaga que pertence a OUTRA empresa (para testar bloqueio)"
+    }
+  ]
+}

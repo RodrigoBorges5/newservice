@@ -4,9 +4,12 @@ from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import BasePermission
-from .middleware import IsCompany, IsCR, IsStudent, IsCompanyOrReadOnly
+from rest_framework.filters import OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
+from .middleware import IsCompany, IsCR, IsStudent, VagaPermission
 from .models import Curriculo, Estudante, Vaga
 from .serializers import CurriculoSerializer, VagaSerializer
+from .filters import VagaFilterSet
 
 
 
@@ -143,21 +146,41 @@ class VagaViewSet(viewsets.ModelViewSet):
     """
     ViewSet para CRUD de vagas.
     
-    permissões:
-    - Empresas (role=1): Podem criar, editar, apagar e listar vagas
-    - CR (role=0) e Estudantes (role=2): Apenas podem listar vagas
+    Permissões:
+    - CR (role=0): CRUD completo (admin) - pode criar, editar, apagar e listar todas as vagas
+    - Empresas (role=1): CRUD próprio - pode criar, editar, apagar apenas suas vagas
+    - Estudantes (role=2): Apenas leitura - pode listar e ver detalhes das vagas
     
-    endpoints:
-    - GET /vagas/ - Lista todas as vagas
+    Endpoints:
+    - GET /vagas/ - Lista todas as vagas (paginado, ordenado por id)
     - GET /vagas/?mine=true - Lista apenas vagas da empresa logada
-    - POST /vagas/ - Cria nova vaga (apenas empresas)
+    - POST /vagas/ - Cria nova vaga (CR e Empresas)
     - GET /vagas/{id}/ - Detalhes de uma vaga
-    - PUT/PATCH /vagas/{id}/ - Atualiza vaga (apenas empresas)
-    - DELETE /vagas/{id}/ - Remove vaga (apenas empresas)
+    - PUT/PATCH /vagas/{id}/ - Atualiza vaga (CR e Empresas, com verificação de propriedade)
+    - DELETE /vagas/{id}/ - Remove vaga (CR e Empresas, com verificação de propriedade)
+    
+    Filtros (via query params):
+    - oportunidade: tipo de oportunidade (case-insensitive) - estagio, emprego, projeto
+    - area: nome(s) de área (case-insensitive) - ?area=Informatica&area=Marketing
+    - area_match: modo de combinação de áreas - 'or' (default) ou 'and'
+    - visualizacoes_min: mínimo de visualizações
+    - visualizacoes_max: máximo de visualizações
+    
+    Paginação:
+    - page: número da página (default: 1)
+    - page_size: itens por página (default: 20)
+    
+    Ordenação:
+    - Ordenado por id ascendente por padrão
+    - Pode usar ?ordering=campo para alterar (ex: ?ordering=-id para descendente)
     """
-    queryset = Vaga.objects.all()
+    queryset = Vaga.objects.all().order_by('id')
     serializer_class = VagaSerializer
-    permission_classes = [IsCompanyOrReadOnly]
+    permission_classes = [VagaPermission]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = VagaFilterSet
+    ordering_fields = ['id', 'nome', 'visualizacoes', 'candidaturas']
+    ordering = ['id']  # Ordenação padrão
     
     def get_queryset(self):
         """
@@ -165,8 +188,10 @@ class VagaViewSet(viewsets.ModelViewSet):
         
         Query params:
         - mine=true: Retorna apenas vagas da empresa logada
+        
+        Ordenação padrão: id ascendente
         """
-        queryset = Vaga.objects.all()
+        queryset = Vaga.objects.all().order_by('id')
         
         # Filtro "minhas vagas"
         mine = self.request.query_params.get('mine', None)
