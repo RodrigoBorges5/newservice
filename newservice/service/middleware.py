@@ -26,8 +26,10 @@ class UserHeaderMiddleware:
         try:
             # Valida usuário no Supabase
             role = get_user_role(user_id)
+        #TODO diferenciar entre user e role    
         except (UserNotFoundError, InvalidUserRoleError):
             return JsonResponse({"detail": f"Usuário {user_id} não autorizado"}, status=403)
+        #TODO corrigir error
         except ConnectionError as e:
             return JsonResponse({"detail": f"Erro ao conectar com Supabase: {str(e)}"}, status=500)
 
