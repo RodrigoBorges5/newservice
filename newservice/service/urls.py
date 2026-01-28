@@ -7,8 +7,12 @@ from . import views
 # Router para ViewSets
 routercv = DefaultRouter()
 routervaga = DefaultRouter()
+routerestudante = DefaultRouter()
+
 routercv.register(r'curriculo', views.CurriculoViewSet, basename='curriculo')
 routervaga.register(r'vagas', views.VagaViewSet, basename='vaga')
+routerestudante.register(r'estudantes', views.EstudanteViewSet, basename='estudante')
+
 urlpatterns = [
     path("", views.idex, name="idex"),
     path("teste/", views.teste.as_view(), name="test"),
@@ -16,7 +20,6 @@ urlpatterns = [
     # Incluir rotas do router
    ]
 
-
-
 urlpatterns += routercv.urls
 urlpatterns += routervaga.urls
+urlpatterns += routerestudante.urls

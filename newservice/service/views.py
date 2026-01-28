@@ -4,9 +4,11 @@ from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import BasePermission
-from .middleware import IsCompany, IsCR, IsStudent, IsCompanyOrReadOnly
+from django_filters.rest_framework import DjangoFilterBackend
+from .middleware import IsCompany, IsCR, IsStudent, IsCompanyOrReadOnly, IsCompanyOrCR
 from .models import Curriculo, Estudante, Vaga
-from .serializers import CurriculoSerializer, VagaSerializer
+from .serializers import CurriculoSerializer, VagaSerializer, EstudanteSerializer
+from .filters import EstudanteFilterSet
 
 
 
@@ -177,4 +179,24 @@ class VagaViewSet(viewsets.ModelViewSet):
             )
         
         return queryset
+
+
+class EstudanteViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet para listagem e filtagem de estudantes.
+    
+    Endpoints:
+    - GET /estudantes/ - Lista todos os estudantes com filtros opcionais
+    - GET /estudantes/{id}/ - Detalhes de um estudante específico
+       
+    Permissões:
+    - Público: Leitura permitida (GET)
+    - CR (role=0): Leitura permitida
+    - Estudantes (role=2): Leitura permitida
+    """
+    permission_classes = [IsCompanyOrCR]
+    queryset = Estudante.objects.all()
+    serializer_class = EstudanteSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = EstudanteFilterSet
     
