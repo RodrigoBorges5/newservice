@@ -4,18 +4,7 @@ from .models import Estudante, AreaEstudante, Area
 
 
 class EstudanteFilterSet(django_filters.FilterSet):
-    """
-    FilterSet para filtrar estudantes com múltiplas opções avançadas.
     
-    Query params suportados:
-    - grau: Filtro case-insensitive por grau (e.g., ?grau=licenciatura)
-    - grau_in: Múltiplos valores de grau (e.g., ?grau_in=licenciatura&grau_in=mestrado)
-    - ano_min: Ano mínimo (e.g., ?ano_min=2020)
-    - ano_max: Ano máximo (e.g., ?ano_max=2024)
-    - disponibilidade: Filtro exato em disponibilidade (e.g., ?disponibilidade=sim)
-    - area: Filtro por ID de área (e.g., ?area=1)
-    - area_nome: Filtro case-insensitive por nome de área (e.g., ?area_nome=informática)
-    """
     
     # Filtro para grau - case-insensitive exato
     grau = django_filters.CharFilter(
