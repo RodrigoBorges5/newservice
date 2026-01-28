@@ -77,3 +77,19 @@ class IsCompanyOrReadOnly(BasePermission):
         
         # métodos de escrita (POST, PUT, PATCH, DELETE): apenas Company
         return role == 1 #criar
+
+
+class IsCompanyOrCR(BasePermission):
+    message = "Não possui permissão para efetuar esta ação."
+
+    def has_permission(self, request, view):
+        role = getattr(request, "role", None)
+
+        if role not in [0, 1]:
+            self.message = "Não possui permissão para efetuar esta ação."
+            return False
+
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return True
+
+        return False

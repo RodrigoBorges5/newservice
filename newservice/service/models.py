@@ -198,11 +198,17 @@ class EmpresaArea(models.Model):
 
 
 class Estudante(models.Model):
+    DISPONIBILIDADE_CHOICES = [
+        ('estagio', 'Estágio'),
+        ('emprego', 'Emprego'),
+        ('projeto', 'Projeto'),
+    ]
+    
     tipo = models.SmallIntegerField(blank=True, null=True)
     idade = models.IntegerField(blank=True, null=True)
     grau = models.CharField(max_length=512, blank=True, null=True)
     ano = models.IntegerField(blank=True, null=True)
-    disponibilidade = models.CharField(max_length=512, blank=True, null=True)
+    disponibilidade = models.CharField(max_length=512, blank=True, null=True, choices=DISPONIBILIDADE_CHOICES)
     share_aceites = models.BooleanField(blank=True, null=True)
     utilizador_auth_user_supabase_field = models.OneToOneField('Utilizador', models.DO_NOTHING, db_column='utilizador_auth_user_supabase__id', primary_key=True)  # Field renamed because it ended with '_'.
 

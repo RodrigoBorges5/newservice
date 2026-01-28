@@ -178,3 +178,24 @@ ou
 ```
 
 ---
+
+## Endpoints de Estudantes
+
+### GET /estudantes/
+
+**Descrição:** Lista todos os estudantes com filtros avançados
+**Permissão:** CR & Comay (GET)
+**Headers:** X-User-ID = [ID do utilizador]
+
+#### Query Parameters (Filtros Disponíveis)
+
+| Parâmetro             | Tipo               | Exemplo                                                    | Descrição                                           |
+| ---------------------- | ------------------ | ---------------------------------------------------------- | ----------------------------------------------------- |
+| `grau`               | string             | `?grau=licenciatura`                                     | Filtro case-insensitive por grau                      |
+| `grau_in`            | string (múltiplo) | `?grau_in=licenciatura&grau_in=mestrado`                 | Múltiplos graus                                      |
+| `ano_min`            | integer            | `?ano_min=1`                                             | Ano de faculdade mínimo (>=)                         |
+| `ano_max`            | integer            | `?ano_max=4`                                             | Ano de faculdade máximo (<=)                         |
+| `disponibilidade`    | string             | `?disponibilidade=estagio`                               | Valores: estagio, emprego, projeto (case-insensitive) |
+| `disponibilidade_in` | string (múltiplo) | `?disponibilidade_in=estagio&disponibilidade_in=emprego` | Múltiplas disponibilidades                           |
+| `area`               | integer            | `?area=1`                                                | Filtro por ID de área                                |
+| `area_nome`          | string             | `?area_nome=informatica`                                 | Filtro case-insensitive por nome de área             |

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Curriculo, Vaga, Area, VagaArea
+from .models import Curriculo, Vaga, Area, VagaArea, Estudante, AreaEstudante
 
 
 class AreaSerializer(serializers.Serializer):
@@ -151,5 +151,39 @@ class VagaSerializer(serializers.ModelSerializer):
         ]
         
         return representation
+
+
+class EstudanteSerializer(serializers.ModelSerializer):
+    """Serializer para Estudante com suporte a áreas via AreaEstudante."""
+    areas = serializers.SerializerMethodField(read_only=True)
+    
+    class Meta:
+        model = Estudante
+        fields = [
+            'utilizador_auth_user_supabase_field',
+            'tipo',
+            'idade',
+            'grau',
+            'ano',
+            'disponibilidade',
+            'share_aceites',
+            'areas',
+        ]
+        read_only_fields = ['areas']
+    
+    def get_areas(self, obj):
+        """Retorna as áreas associadas ao estudante via AreaEstudante."""
+        area_estudantes = AreaEstudante.objects.filter(
+            estudante_utilizador_auth_user_supabase_field=obj
+        ).select_related('area')
+        
+        return [
+            {
+                'id': ae.area.id,
+                'nome': ae.area.nome,
+                'descricao': ae.area.descricao
+            }
+            for ae in area_estudantes
+        ]
 
 
