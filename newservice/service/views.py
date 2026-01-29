@@ -134,7 +134,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
             return Response(
                 {
                     "id": curriculo.id,
-                    "storage_path": curriculo.file,
+                    "storage_path": file_path,
                     "status": curriculo.status,
                 },
                 status=status.HTTP_201_CREATED,
