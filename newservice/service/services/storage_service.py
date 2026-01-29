@@ -15,7 +15,7 @@ class SupabaseStorageService:
     def __init__(self):
         self.client = create_client(
             settings.SUPABASE_URL,
-            settings.SUPABASE_KEY,
+            settings.SUPABASE_SERVICE_KEY
         )
 
     def upload_file(self, file, bucket_name: str, file_path: str) -> str:
@@ -37,15 +37,16 @@ class SupabaseStorageService:
             raise StorageUploadException("Ficheiro nulo")
 
         try:
+            file_bytes = file.read()
+
             response = self.client.storage.from_(bucket_name).upload(
                 path=file_path,
-                file=file,
+                file=file_bytes,
+                file_options={
+                    "content-type": file.content_type,
+                    "upsert": "true",
+                },
             )
-
-            if response.get("error"):
-                raise StorageUploadException(response["error"]["message"])
-
-            return file_path
 
         except Exception as exc:
             raise StorageUploadException(str(exc)) from exc

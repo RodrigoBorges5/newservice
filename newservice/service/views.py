@@ -7,8 +7,9 @@ from rest_framework.permissions import BasePermission
 from .middleware import IsCompany, IsCR, IsStudent, IsCompanyOrReadOnly
 from .models import Curriculo, Estudante, Vaga
 from .serializers import CurriculoSerializer, VagaSerializer
-
-
+from service.services.storage_service import SupabaseStorageService
+from service.services.exceptions import StorageUploadException
+from django.conf import settings
 
 def idex(request):
     return HttpResponse("You're at the service indexs.")
@@ -80,41 +81,64 @@ class CurriculoViewSet(viewsets.ModelViewSet):
         
         # POST - Criar novo CV
         if request.method == 'POST':
-            # Verificar UNIQUE constraint (T1.17) - estudante só pode ter 1 CV
-            if Curriculo.objects.filter(
-                estudante_utilizador_auth_user_supabase_field=estudante
-            ).exists():
+
+            file = request.FILES.get("cv")
+
+            # C2 — validação do ficheiro
+            if not file:
                 return Response(
-                    {
-                        "detail": "Já existe um currículo associado a este estudante."
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"detail": "Ficheiro de currículo é obrigatório."},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
-            
-            # Adicionar estudante aos dados antes da serialização
-            data = request.data.copy()
-            data['estudante_utilizador_auth_user_supabase_field'] = estudante.utilizador_auth_user_supabase_field
-            
-            serializer = self.get_serializer(data=data)
-            
-            # Validação US-2.2 acontece no serializer
+
+            if file.content_type != settings.ALLOWED_MIME:
+                return Response(
+                    {"detail": "Apenas ficheiros PDF são permitidos."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+ 
+            # C3 — validação de tamanho
+            if file.size > settings.MAX_FILE_SIZE:
+                return Response(
+                    {"detail": "O ficheiro excede o tamanho máximo de 5MB."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # C4 — upload para Supabase
+            storage_service = SupabaseStorageService()
+            bucket_name = "cvs"
+            file_path = f"estudante_{user_id}/cv.pdf"
+
             try:
-                serializer.is_valid(raise_exception=True)
-                self.perform_create(serializer)
-                
-                return Response(
-                    {
-                        "message": "Currículo submetido com sucesso! Aguarde validação da equipa CR.",
-                        "data": serializer.data
-                    },
-                    status=status.HTTP_201_CREATED
+                storage_path = storage_service.upload_file(
+                    file=file,
+                    bucket_name=bucket_name,
+                    file_path=file_path,
                 )
-            except Exception as e:
+            except StorageUploadException:
                 return Response(
-                    {"detail": "Erro ao submeter currículo: deves aceitar."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"detail": "Erro ao guardar o currículo."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
-        
+
+            # C5 — criar ou atualizar Curriculo
+            curriculo, _ = Curriculo.objects.update_or_create(
+                estudante_utilizador_auth_user_supabase_field=estudante,
+                defaults={
+                    "file": storage_path,
+                    "status": 0,  # Pendente de validação
+                },
+            )
+
+            # C6 — resposta estruturada
+            return Response(
+                {
+                    "id": curriculo.id,
+                    "storage_path": curriculo.file,
+                    "status": curriculo.status,
+                },
+                status=status.HTTP_201_CREATED,
+            )
         # GET e DELETE - Buscar CV existente
         try:
             curriculo = Curriculo.objects.get(
