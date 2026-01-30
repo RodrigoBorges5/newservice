@@ -10,6 +10,7 @@ from .serializers import CurriculoSerializer, VagaSerializer
 from service.services.storage_service import SupabaseStorageService
 from service.services.exceptions import StorageUploadException
 from django.conf import settings
+from django.db import transaction
 
 def idex(request):
     return HttpResponse("You're at the service indexs.")
@@ -84,7 +85,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
 
             file = request.FILES.get("cv")
 
-            # C2 — validação do ficheiro
+            # validação do ficheiro
             if not file:
                 return Response(
                     {"detail": "Ficheiro de currículo é obrigatório."},
@@ -97,20 +98,20 @@ class CurriculoViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
  
-            # C3 — validação de tamanho
+            # validação de tamanho
             if file.size > settings.MAX_FILE_SIZE:
                 return Response(
                     {"detail": "O ficheiro excede o tamanho máximo de 5MB."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # C4 — upload para Supabase
+            # upload para Supabase
             storage_service = SupabaseStorageService()
             bucket_name = "cvs"
             file_path = f"estudante_{user_id}/cv.pdf"
 
             try:
-                storage_path = storage_service.upload_file(
+                storage_service.upload_file(
                     file=file,
                     bucket_name=bucket_name,
                     file_path=file_path,
@@ -118,19 +119,42 @@ class CurriculoViewSet(viewsets.ModelViewSet):
             except StorageUploadException:
                 return Response(
                     {"detail": "Erro ao guardar o currículo."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
                 )
 
-            # C5 — criar ou atualizar Curriculo
-            curriculo, _ = Curriculo.objects.update_or_create(
-                estudante_utilizador_auth_user_supabase_field=estudante,
-                defaults={
-                    "file": storage_path,
-                    "status": 0,  # Pendente de validação
-                },
-            )
+            try:
+                signed_url = storage_service.get_signed_url(
+                    bucket_name="cvs",
+                    file_path=file_path
+                )
+            except StorageUploadException:
+                return Response(
+                    {"detail": "Erro ao gerar URL de visualização"},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
 
-            # C6 — resposta estruturada
+            # criar/atualizar Curriculo
+            try:
+                with transaction.atomic():
+                    # transação atómica
+                    curriculo, _ = Curriculo.objects.update_or_create(
+                        estudante_utilizador_auth_user_supabase_field=estudante,
+                        defaults={
+                            "file": signed_url,
+                            "status": 0,  # Pendente de validação
+                        },
+                    )
+            except Exception:
+                # rollback do storage
+                storage_service.delete_file(
+                    bucket_name=bucket_name,
+                    file_path=file_path,
+                )
+                return Response(
+                    {"detail": "Erro ao registar CV"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+            
             return Response(
                 {
                     "id": curriculo.id,
