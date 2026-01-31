@@ -4,16 +4,28 @@ from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import BasePermission
+from rest_framework.pagination import PageNumberPagination
 from .middleware import IsCompany, IsCR, IsStudent, IsCompanyOrReadOnly
-from .models import Curriculo, Estudante, Vaga
-from .serializers import CurriculoSerializer, VagaSerializer
+from .models import Curriculo, Estudante, Vaga, CVAccessLog, CV_STATUS_LABELS
+from .serializers import CurriculoSerializer, VagaSerializer, CVSignedUrlSerializer, CVAccessLogSerializer
 from service.services.storage_service import SupabaseStorageService
-from service.services.exceptions import StorageUploadException
+from service.services.cv_service import CVService
+from service.services.exceptions import StorageUploadException, StorageSignedUrlException
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
+
 
 def idex(request):
     return HttpResponse("You're at the service indexs.")
+
+
+class AccessHistoryPagination(PageNumberPagination):
+    """Paginação customizada para histórico de acessos - 50 registos por página."""
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
 
 class teste(APIView):
     permission_classes = [IsStudent]  # só students podem usar
@@ -57,6 +69,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
         if self.action == 'get_my_cv':
             # Estudante acede ao seu próprio CV
             permission_classes = [IsStudent]
+        
         else:
             # Bloquear acesso aos endpoints padrão do viewset
             permission_classes = []
@@ -122,17 +135,6 @@ class CurriculoViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_503_SERVICE_UNAVAILABLE,
                 )
 
-            try:
-                signed_url = storage_service.get_signed_url(
-                    bucket_name="cvs",
-                    file_path=file_path
-                )
-            except StorageUploadException:
-                return Response(
-                    {"detail": "Erro ao gerar URL de visualização"},
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                )
-
             # criar/atualizar Curriculo
             try:
                 with transaction.atomic():
@@ -140,7 +142,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
                     curriculo, _ = Curriculo.objects.update_or_create(
                         estudante_utilizador_auth_user_supabase_field=estudante,
                         defaults={
-                            "file": signed_url,
+                            "file": file_path,
                             "status": 0,  # Pendente de validação
                         },
                     )
@@ -158,7 +160,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
             return Response(
                 {
                     "id": curriculo.id,
-                    "storage_path": file_path,
+                    "file": file_path,
                     "status": curriculo.status,
                 },
                 status=status.HTTP_201_CREATED,
@@ -176,17 +178,154 @@ class CurriculoViewSet(viewsets.ModelViewSet):
         
         # DELETE - Remover CV
         if request.method == 'DELETE':
+            storage_service = SupabaseStorageService()
+            bucket_name = "cvs"
+            file_path = curriculo.file
+
+            # tentar remover do storage (se existir)
+            try:
+                if file_path:
+                    storage_service.delete_file(
+                        bucket_name=bucket_name,
+                        file_path=file_path,
+                    )
+            except Exception:
+                return Response(
+                    {"detail": "Erro ao remover o currículo do storage."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+
+            # remover registo do BD
             self.perform_destroy(curriculo)
             return Response(
                 {"message": "Currículo eliminado com sucesso. Crie novo CV se desejar."},
                 status=status.HTTP_204_NO_CONTENT
             )
         
-        # GET - Retornar CV
+        # GET - Retornar CV (com signed_url se aprovado)
         serializer = self.get_serializer(curriculo)
+        response_data = serializer.data
+        
+        # Se CV está aprovado, adicionar signed_url à resposta
+        if curriculo.status == 1:
+            cv_service = CVService()
+            response_data['signed_url'] = cv_service.get_signed_url_for_curriculo(curriculo, user_id, request.role)
+            response_data['expires_in_seconds'] = 900
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'], url_path='view')
+    def view_cv(self, request, pk=None):
+        """
+        Endpoint para visualização segura de CVs com URL assinada.
+        
+        GET /curriculo/{id}/view/
+        
+        Permissões:
+        - Empresa: pode visualizar CVs, status = 1
+        - CR: pode visualizar todos os CVs
+        - Estudante: deve usar /curriculo/me em vez disto
+        
+        Retorna:
+        - JSON com signed_url + metadata do CV
+        - URL válida por 15 minutos (900 segundos)
+        
+        """
+        try:
+            curriculo = self.get_object()
+        except Curriculo.DoesNotExist:
+            return Response(
+                {"detail": "Não há currículo encontrado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Verificar permissões
+        user_id = request.user_id
+        user_role = request.role
+        
+        # Validar permissões baseado na role
+        if user_role == 2:  # Estudante
+            # Estudante deve usar /me/ para seu CV
+            return Response(
+                {"detail": "Estudantes devem usar /curriculo/me/ para visualizar seu CV."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        elif user_role == 1:  # Empresa
+            # Empresa só pode ver CVs aprovados
+            if curriculo.status != 1:
+                return Response(
+                    {"detail": "Apenas currículos aprovados podem ser visualizados. Este currículo está em estado: {status_label}.".format(
+                        status_label=CV_STATUS_LABELS.get(curriculo.status, 'desconhecido')
+                    )},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        elif user_role == 0:  # CR
+            # CR pode ver todos
+            pass
+        
+        else:
+            return Response(
+                {"detail": "Role não reconhecido."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Gerar response com signed URL via service
+        cv_service = CVService()
+        return cv_service.generate_signed_url_response(curriculo, user_id, user_role)
+
+    @action(detail=True, methods=['get'], url_path='access-history')
+    def access_history(self, request, pk=None):
+        """
+        Endpoint para visualizar histórico de acessos a um CV.
+        
+        GET /curriculo/{id}/access-history/
+        
+        Permissões:
+        - CR (role=0): Pode visualizar histórico de qualquer CV
+        
+        Query params:
+        - page: Número da página (padrão: 1)
+        - page_size: Número de registos por página (padrão: 50, máximo: 100)
+        
+        Retorna:
+        - JSON com lista paginada de acessos ao CV
+        - Ordenado por accessed_at DESC (mais recentes primeiro)
+        """
+        # Verificar permissão - apenas CR pode acessar histórico
+        if request.role != 0:  # 0 = CR
+            return Response(
+                {"detail": "CR visualiza o histórico de acessos."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Verificar se CV existe
+        try:
+            curriculo = self.get_object()
+        except Curriculo.DoesNotExist:
+            return Response(
+                {"detail": "Não há ´currículo encontrado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Obter logs ordenados por accessed_at DESC
+        access_logs = CVAccessLog.objects.filter(
+            curriculo=curriculo
+        ).order_by('-accessed_at')
+        
+        # Aplicar paginação
+        paginator = AccessHistoryPagination()
+        paginated_logs = paginator.paginate_queryset(access_logs, request)
+        
+        if paginated_logs is not None:
+            serializer = CVAccessLogSerializer(paginated_logs, many=True)
+            return paginator.get_paginated_response(serializer.data)
+        
+        # Fallback se a paginação falhar
+        serializer = CVAccessLogSerializer(access_logs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    
 class VagaViewSet(viewsets.ModelViewSet):
     """
     ViewSet para CRUD de vagas.

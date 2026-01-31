@@ -1,5 +1,39 @@
 from rest_framework import serializers
-from .models import Curriculo, Vaga, Area, VagaArea
+from .models import Curriculo, Vaga, Area, VagaArea, CVAccessLog, CV_STATUS_LABELS
+
+
+class CVAccessLogSerializer(serializers.ModelSerializer):
+    """Serializer para CVAccessLog - histórico de acessos."""
+    accessed_by_user_id = serializers.SerializerMethodField()
+    accessed_by_role = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CVAccessLog
+        fields = ['id', 'accessed_by_user_id', 'accessed_by_role', 'accessed_at']
+        read_only_fields = fields
+    
+    def get_accessed_by_user_id(self, obj):
+        """Retorna o user_id como string UUID."""
+        return str(obj.accessed_by_user_id)
+    
+    def get_accessed_by_role(self, obj):
+        """Retorna o role com label legível."""
+        role_labels = {0: 'CR', 1: 'Empresa', 2: 'Estudante'}
+        return role_labels.get(obj.accessed_by_role, 'desconhecido')
+
+
+class CVSignedUrlSerializer(serializers.Serializer):
+    """Serializer retornar URL assinada com metadata do CV."""
+    id = serializers.IntegerField()
+    signed_url = serializers.URLField()
+    status = serializers.IntegerField()
+    status_label = serializers.SerializerMethodField()
+    validated_date = serializers.DateField(allow_null=True)
+    expires_in_seconds = serializers.IntegerField(default=900)
+
+    def get_status_label(self, obj):
+        """Converte status numérico para label legível."""
+        return CV_STATUS_LABELS.get(obj.get('status'), 'desconhecido')
 
 
 class AreaSerializer(serializers.Serializer):

@@ -5,8 +5,16 @@
 #   * Make sure each ForeignKey and OneToOneField has `on_delete` set to the desired behavior
 #   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
 # Feel free to rename the models, but don't rename db_table values or field names.
+import uuid
+
 from django.db import models
 
+# Constantes para status de currículo
+CV_STATUS_LABELS = {
+    0: "pendente",
+    1: "aprovado",
+    2: "rejeitado"
+}
 
 class Area(models.Model):
     nome = models.CharField(max_length=512, blank=True, null=True)
@@ -15,7 +23,6 @@ class Area(models.Model):
     class Meta:
         managed = False
         db_table = 'area'
-
 
 class AreaEstudante(models.Model):
     pk = models.CompositePrimaryKey('area', 'estudante_utilizador_auth_user_supabase_field')
@@ -26,14 +33,12 @@ class AreaEstudante(models.Model):
         managed = False
         db_table = 'area_estudante'
 
-
 class AuthGroup(models.Model):
     name = models.CharField(unique=True, max_length=150)
 
     class Meta:
         managed = False
         db_table = 'auth_group'
-
 
 class AuthGroupPermissions(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -45,7 +50,6 @@ class AuthGroupPermissions(models.Model):
         db_table = 'auth_group_permissions'
         unique_together = (('group', 'permission'),)
 
-
 class AuthPermission(models.Model):
     name = models.CharField(max_length=255)
     content_type = models.ForeignKey('DjangoContentType', models.DO_NOTHING)
@@ -55,7 +59,6 @@ class AuthPermission(models.Model):
         managed = False
         db_table = 'auth_permission'
         unique_together = (('content_type', 'codename'),)
-
 
 class AuthUser(models.Model):
     password = models.CharField(max_length=128)
@@ -67,7 +70,6 @@ class AuthUser(models.Model):
         managed = False
         db_table = 'auth_user'
 
-
 class AuthUserGroups(models.Model):
     id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(AuthUser, models.DO_NOTHING)
@@ -77,7 +79,6 @@ class AuthUserGroups(models.Model):
         managed = False
         db_table = 'auth_user_groups'
         unique_together = (('user', 'group'),)
-
 
 class AuthUserUserPermissions(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -89,7 +90,6 @@ class AuthUserUserPermissions(models.Model):
         db_table = 'auth_user_user_permissions'
         unique_together = (('user', 'permission'),)
 
-
 class Cr(models.Model):
     tipo = models.SmallIntegerField(blank=True, null=True)
     utilizador_auth_user_supabase_field = models.OneToOneField('Utilizador', models.DO_NOTHING, db_column='utilizador_auth_user_supabase__id', primary_key=True)  # Field renamed because it ended with '_'.
@@ -98,7 +98,6 @@ class Cr(models.Model):
         managed = False
         db_table = 'cr'
 
-
 class CrCurriculo(models.Model):
     cr_utilizador_auth_user_supabase_field = models.ForeignKey(Cr, models.DO_NOTHING, db_column='cr_utilizador_auth_user_supabase__id')  # Field renamed because it ended with '_'.
     curriculo = models.OneToOneField('Curriculo', models.DO_NOTHING, primary_key=True)
@@ -106,7 +105,6 @@ class CrCurriculo(models.Model):
     class Meta:
         managed = False
         db_table = 'cr_curriculo'
-
 
 class Curriculo(models.Model):
     file = models.CharField(blank=True, null=True)
@@ -118,6 +116,17 @@ class Curriculo(models.Model):
     class Meta:
         managed = False
         db_table = 'curriculo'
+
+class CVAccessLog(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    curriculo = models.ForeignKey('Curriculo', on_delete=models.CASCADE)
+    accessed_by_user_id = models.UUIDField()  # Alterado de BigIntegerField para UUIDField
+    accessed_by_role = models.SmallIntegerField()
+    accessed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = False
+        db_table = 'cv_access_log'
 
 
 class DjangoAdminLog(models.Model):
