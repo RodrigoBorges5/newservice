@@ -1,9 +1,16 @@
 from django.http import JsonResponse
-from .supabase_client import get_user_role, UserNotFoundError, InvalidUserRoleError
+from .supabase_client import (
+    get_user_role,
+    UserNotFoundError,
+    InvalidUserRoleError,
+)
 from rest_framework.permissions import BasePermission
+import logging
+
+logger = logging.getLogger(__name__)
 
 EXCLUDED_PATHS = [
-    "/service/",      
+    "/service/",
 ]
 
 class UserHeaderMiddleware:
@@ -14,26 +21,38 @@ class UserHeaderMiddleware:
     def __call__(self, request):
         if request.path in EXCLUDED_PATHS:
             return self.get_response(request)
-         
+
         user_id = request.headers.get("X-User-ID")
-        role = request.headers.get("X-User-Role", "user")
 
         if not user_id:
             return JsonResponse(
                 {"detail": "Header X-User-ID em falta"},
                 status=401
             )
-        try:
-            # Valida usuário no Supabase
-            role = get_user_role(user_id)
-        #TODO diferenciar entre user e role    
-        except (UserNotFoundError, InvalidUserRoleError):
-            return JsonResponse({"detail": f"Usuário {user_id} não autorizado"}, status=403)
-        #TODO corrigir error
-        except ConnectionError as e:
-            return JsonResponse({"detail": f"Erro ao conectar com Supabase: {str(e)}"}, status=500)
 
-        
+        try:
+            # valida usuário e retorna role a partir do Supabase
+            role = get_user_role(user_id)
+
+        except UserNotFoundError:
+            return JsonResponse(
+                {"detail": f"Usuário {user_id} não encontrado"},
+                status=401
+            )
+
+        except InvalidUserRoleError:
+            return JsonResponse(
+                {"detail": f"Usuário {user_id} não possui permissão válida"},
+                status=403
+            )
+
+        except Exception:
+            logger.exception("Erro ao conectar com Supabase")
+            return JsonResponse(
+                {"detail": "Erro interno ao validar usuário"},
+                status=500
+            )
+
         request.user_id = user_id
         request.role = role
 

@@ -122,17 +122,6 @@ class CurriculoViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_503_SERVICE_UNAVAILABLE,
                 )
 
-            try:
-                signed_url = storage_service.get_signed_url(
-                    bucket_name="cvs",
-                    file_path=file_path
-                )
-            except StorageUploadException:
-                return Response(
-                    {"detail": "Erro ao gerar URL de visualização"},
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                )
-
             # criar/atualizar Curriculo
             try:
                 with transaction.atomic():
@@ -140,7 +129,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
                     curriculo, _ = Curriculo.objects.update_or_create(
                         estudante_utilizador_auth_user_supabase_field=estudante,
                         defaults={
-                            "file": signed_url,
+                            "file": file_path,
                             "status": 0,  # Pendente de validação
                         },
                     )
