@@ -96,3 +96,11 @@ class IsCompanyOrReadOnly(BasePermission):
         
         # métodos de escrita (POST, PUT, PATCH, DELETE): apenas Company
         return role == 1 #criar
+class IsAll(BasePermission):
+    """
+    Permite acesso a todos os tipos de usuários autenticados.
+    """
+    message = "Não possui permissão para efetuar esta ação."
+
+    def has_permission(self, request, view):
+        return getattr(request, "role", None) in [0, 1, 2]

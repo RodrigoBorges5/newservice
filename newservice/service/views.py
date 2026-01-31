@@ -3,11 +3,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, AllowAny
 from rest_framework.pagination import PageNumberPagination
-from .middleware import IsCompany, IsCR, IsStudent, IsCompanyOrReadOnly
+from django_filters.rest_framework import DjangoFilterBackend
+from .middleware import IsCompany, IsCR, IsStudent, IsCompanyOrReadOnly, IsAll
 from .models import Curriculo, Estudante, Vaga, CVAccessLog, CV_STATUS_LABELS
 from .serializers import CurriculoSerializer, VagaSerializer, CVSignedUrlSerializer, CVAccessLogSerializer
+from .filters import CurriculoFilterSet
 from service.services.storage_service import SupabaseStorageService
 from service.services.cv_service import CVService
 from service.services.exceptions import StorageUploadException, StorageSignedUrlException
@@ -45,17 +47,31 @@ class CurriculoViewSet(viewsets.ModelViewSet):
     
     Endpoints:
     - GET curriculo/me/ - Retorna o CV do estudante autenticado
-
     - POST curriculo/me/ - Cria um novo CV para o estudante autenticado
-    
     - DELETE curriculo/me/ - Remove o CV do estudante autenticado
+    - GET /curriculo/{id}/view/ - Visualiza CV com signed URL
+    - GET /curriculo/{id}/access-history/ - Histórico de acessos (CR only)
+    
+    Filtros disponíveis (query params):
+    - status: Status do CV (0=pendente, 1=aprovado, 2=rejeitado)
+    - status_in: Múltiplos status (e.g., ?status_in=0&status_in=1)
+    - validated_date_after: CVs validados após data (YYYY-MM-DD)
+    - validated_date_before: CVs validados antes data (YYYY-MM-DD)
+    - estudante_grau: Grau do estudante (case-insensitive)
+    - estudante_grau_in: Múltiplos graus
+    - estudante_ano_min: Ano de faculdade mínimo
+    - estudante_ano_max: Ano de faculdade máximo
+    - estudante_area: ID da área do estudante
+    - estudante_area_nome: Nome da área do estudante (case-insensitive)
     
     Permissões: 
     - Student (role=2): Pode visualizar, criar, atualizar e deletar seu próprio CV
+    - CR (role=0): Pode visualizar histórico de acessos
     """
     serializer_class = CurriculoSerializer
-    
     queryset = Curriculo.objects.all()
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = CurriculoFilterSet
     
     def get_permissions(self):
         """
@@ -69,10 +85,12 @@ class CurriculoViewSet(viewsets.ModelViewSet):
         if self.action == 'get_my_cv':
             # Estudante acede ao seu próprio CV
             permission_classes = [IsStudent]
+        elif self.action == 'access_history':
+            permission_classes = [IsCR]
+        elif self.action == 'view_cv':
+            permission_classes = [IsAll]  
+            
         
-        else:
-            # Bloquear acesso aos endpoints padrão do viewset
-            permission_classes = []
                
         return [permission() for permission in permission_classes]
        

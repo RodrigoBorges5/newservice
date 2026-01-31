@@ -177,4 +177,32 @@ ou
 }
 ```
 
+### GET /curriculo/
+
+**Filtros Suportados:**
+
+- `status` e `status_in` (múltiplos status)
+- `validated_date_after`, `validated_date_before` (ranges de data)
+- `estudante_grau`, `estudante_grau_in` (grau académico)
+- `estudante_ano_min`, `estudante_ano_max` (range de anos)
+- `estudante_area` (ID da área)
+- `estudante_area_nome` (nome da área, case-insensitive)
+
 ---
+
+### GET /curriculo/ /view/
+
+**Restrições por Role:**
+
+- **Empresa**: Vê apenas CVs aprovados (status=1)
+- **CR**: Vê todos os CVs
+- **Estudante**: Bloqueado, use `/curriculo/me/`
+
+---
+
+### GET /curriculo/access-history/
+
+**Descrição:** Histórico de acessos a um CV (CR only)
+**Paginação:** 50 registos/página
+**Ordenação:** Por accessed_at DESC (mais recentes primeiro)
+**Retenção:** 12 meses (limpeza automática via Celery)
