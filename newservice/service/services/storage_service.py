@@ -65,8 +65,8 @@ class SupabaseStorageService:
         try:
             response = self.client.storage.from_(bucket_name).remove([file_path])
 
-            # Supabase does not error if file does not exist
-            if response.get("error"):
+            # Supabase may return a list (success) or dict with error
+            if isinstance(response, dict) and response.get("error"):
                 raise StorageDeleteException(response["error"]["message"])
 
         except Exception as exc:
