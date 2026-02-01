@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from .models import Curriculo, Vaga, Area, VagaArea, CVAccessLog, CV_STATUS_LABELS
 
-
 class CVAccessLogSerializer(serializers.ModelSerializer):
     """Serializer para CVAccessLog - histórico de acessos."""
     accessed_by_user_id = serializers.SerializerMethodField()
