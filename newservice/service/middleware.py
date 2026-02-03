@@ -104,3 +104,12 @@ class IsAll(BasePermission):
 
     def has_permission(self, request, view):
         return getattr(request, "role", None) in [0, 1, 2]
+    
+class IsCROrIsCompany(BasePermission):
+    """
+    Permite acesso a usuários com role CR (0) ou Company (1).
+    """
+    message = "Não possui permissão para efetuar esta ação. Apenas CR ou Empresas podem acessar."
+
+    def has_permission(self, request, view):
+        return getattr(request, "role", None) in [0, 1]

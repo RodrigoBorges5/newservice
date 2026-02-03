@@ -45,35 +45,6 @@ X-User-ID = [ID]
 **Permissão:** IsStudent (role=2)
 **Headers:** X-User-ID = [ID do estudante]
 
-**Resposta com sucesso (200 OK):**
-
-```json
-{
-    "id": 1,
-    "file": "path/to/curriculo.pdf",
-    "status": 0,
-    "descricao": "Currículo atualizado 2026",
-    "validated_date": null,
-    "estudante_utilizador_auth_user_supabase_field": "uuid-estudante"
-}
-```
-
-**Resposta sem currículo (404 NOT FOUND):**
-
-```json
-{
-    "detail": "Currículo não encontrado. Por favor, submeta o seu CV."
-}
-```
-
-**Resposta sem perfil de estudante (404 NOT FOUND):**
-
-```json
-{
-    "detail": "Perfil de estudante não encontrado."
-}
-```
-
 ---
 
 ### POST /curriculo/me/
@@ -82,121 +53,50 @@ X-User-ID = [ID]
 **Permissão:** IsStudent (role=2)
 **Headers:** X-User-ID = [ID do estudante]
 
-**Body (exemplo):**
-
-```json
-{
-    "file": "path/to/meu_curriculo.pdf",
-    "descricao": "Currículo com experiência em Python e Django"
-}
-```
-
-**Resposta com sucesso (201 CREATED):**
-
-```json
-{
-    "message": "Currículo submetido com sucesso! Aguarde validação da equipa CR.",
-    "data": {
-        "id": 1,
-        "file": "path/to/meu_curriculo.pdf",
-        "status": 0,
-        "descricao": "Currículo com experiência em Python e Django",
-        "validated_date": null,
-        "estudante_utilizador_auth_user_supabase_field": "uuid-estudante"
-    }
-}
-```
-
-**Resposta com CV duplicado (400 BAD REQUEST):**
-
-```json
-{
-    "detail": "Já existe um currículo associado a este estudante."
-}
-```
-
-**Resposta sem aceitar termos (400 BAD REQUEST):**
-
-```json
-{
-    "detail": "Erro ao submeter currículo: deves aceitar."
-}
-```
-
-ou
-
-```json
-{
-    "estudante_utilizador_auth_user_supabase_field": [
-        "Deves aceitar a partilhar os dados a submeter o curriculo. Por favor, aceite os termos de dados."
-    ]
-}
-```
-
-**Resposta com ficheiro não-PDF (400 BAD REQUEST):**
-
-```json
-{
-    "file": [
-        "O ficheiro do curriculo deve estar em formato PDF."
-    ]
-}
-```
-
-**Resposta com caminho muito longo (400 BAD REQUEST):**
-
-```json
-{
-    "file": [
-        "O caminho do ficheiro é demasiado longo."
-    ]
-}
-```
-
----
-
 ### DELETE /curriculo/me/
 
 **Descrição:** Remove o currículo do estudante autenticado
 **Permissão:** IsStudent (role=2)
 **Headers:** X-User-ID = [ID do estudante]
 
-**Resposta com sucesso (204 NO CONTENT):**
-
-```json
-{
-    "message": "Currículo eliminado com sucesso. Crie novo CV se desejar."
-}
-```
-
-**Resposta sem currículo (404 NOT FOUND):**
-
-```json
-{
-    "detail": "Currículo não encontrado. Por favor, submeta o seu CV."
-}
-```
-
 ### GET /curriculo/
 
-**Filtros Suportados:**
-
-- `status` e `status_in` (múltiplos status)
-- `validated_date_after`, `validated_date_before` (ranges de data)
-- `estudante_grau`, `estudante_grau_in` (grau académico)
-- `estudante_ano_min`, `estudante_ano_max` (range de anos)
-- `estudante_area` (ID da área)
-- `estudante_area_nome` (nome da área, case-insensitive)
-
----
-
-### GET /curriculo/ /view/
+**Descrição:** Lista múltiplos currículos com filtros aplicados
+**Permissão:** IsAll (role=0, 1, 2)
+**Headers:** X-User-ID = [ID do utilizador]
 
 **Restrições por Role:**
 
-- **Empresa**: Vê apenas CVs aprovados (status=1)
-- **CR**: Vê todos os CVs
-- **Estudante**: Bloqueado, use `/curriculo/me/`
+- **CR (role=0)**: Vê todos os CVs (status 0, 1, 2) - pode usar todos os filtros
+- **Empresa (role=1)**: Vê apenas CVs aprovados (status=1) - pode usar todos os filtros
+- **Estudante (role=2)**: Deve usar `/curriculo/me/` para seu próprio CV
+
+**Filtros Suportados (Query Params):**
+
+- `status` - Status exato do CV (0=pendente, 1=aprovado, 2=rejeitado)
+- `status_in` - Múltiplos status (e.g., `?status_in=0&status_in=1`)
+- `validated_date_after` - CVs validados após data (YYYY-MM-DD)
+- `validated_date_before` - CVs validados antes de data (YYYY-MM-DD)
+- `estudante_grau` - Grau do estudante (case-insensitive)
+- `estudante_grau_in` - Múltiplos graus
+- `estudante_ano_min` - Ano de faculdade mínimo (>=)
+- `estudante_ano_max` - Ano de faculdade máximo (<=)
+- `estudante_area` - ID da área do estudante
+- `estudante_area_nome` - Nome da área do estudante (case-insensitive, contém)
+
+---
+
+### GET /curriculo/view/
+
+**Descrição:** Visualiza um CV específico com signed URL
+**Permissão:** IsAll (role=0, 1, 2)
+**Headers:** X-User-ID = [ID do utilizador]
+
+**Restrições por Role:**
+
+- **CR (role=0)**: Pode ver qualquer CV (todos os status)
+- **Empresa (role=1)**: Vê apenas CVs aprovados (status=1)
+- **Estudante (role=2)**: Bloqueado, use `/curriculo/me/`
 
 ---
 
@@ -206,3 +106,8 @@ ou
 **Paginação:** 50 registos/página
 **Ordenação:** Por accessed_at DESC (mais recentes primeiro)
 **Retenção:** 12 meses (limpeza automática via Celery)
+
+**Query:**
+
+- `page` - Número da página (padrão: 1)
+- `page_size` - Registos por página (padrão: 50, máximo: 100)

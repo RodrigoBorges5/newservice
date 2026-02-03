@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import BasePermission, AllowAny
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
-from .middleware import IsCompany, IsCR, IsStudent, IsCompanyOrReadOnly, IsAll
+from .middleware import IsCompany, IsCR, IsStudent, IsCompanyOrReadOnly, IsAll, IsCROrIsCompany
 from .models import Curriculo, Estudante, Vaga, CVAccessLog, CV_STATUS_LABELS
 from .serializers import CurriculoSerializer, VagaSerializer, CVSignedUrlSerializer, CVAccessLogSerializer
 from .filters import CurriculoFilterSet
@@ -72,12 +72,33 @@ class CurriculoViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_class = CurriculoFilterSet
     
+    def get_queryset(self):
+        """
+        Filtra queryset baseado no role do utilizador.
+        
+        - CR (role=0): Pode ver todos os CVs (status 0, 1, 2)
+        - Empresa (role=1): Pode ver apenas CVs com status=1 (aprovados)
+        - Estudante (role=2): Vê seu próprio CV via /me/
+        """
+        queryset = Curriculo.objects.all()
+        user_role = getattr(self.request, 'role', None)
+        
+        # Empresa (1) só vê CVs aprovados
+        if user_role == 1:
+            queryset = queryset.filter(status=1)
+        # CR (0) vê todos os CVs
+        # Estudante (2) não deve chegar aqui (usa /me/)
+        
+        return queryset
+    
     def get_permissions(self):
         """
         permissões baseadas na ação e role do usuário.
 
         
         IsStudent: Pode gerir o seu próprio CV. (GET, POST, DELETE em /curriculo/me/)
+        IsAll: Qualquer utilizador pode fazer GET para ver vários CVs com filtros
+        IsCR: Apenas CR pode ver histórico de acessos
         
 
         """
@@ -86,10 +107,11 @@ class CurriculoViewSet(viewsets.ModelViewSet):
             permission_classes = [IsStudent]
         elif self.action == 'access_history':
             permission_classes = [IsCR]
-        elif self.action == 'view_cv':
-            permission_classes = [IsAll]  
-            
-        
+        elif self.action in ['view_cv']:
+            permission_classes = [IsAll]
+        else:
+            # GET para listar vários CVs com filtros
+            permission_classes = [IsCROrIsCompany]
                
         return [permission() for permission in permission_classes]
        
@@ -223,11 +245,17 @@ class CurriculoViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(curriculo)
         response_data = serializer.data
         
-        # Se CV está aprovado, adicionar signed_url à resposta
-        if curriculo.status == 1:
+        # Adicionar mensagem baseada no status
+        if curriculo.status == 0:
+            response_data['message'] = "O seu currículo está pendente de validação."
+        elif curriculo.status == 2:
+            response_data['message'] = "O seu currículo foi rejeitado. Por favor, submeta um novo CV."
+        elif curriculo.status == 1:
+            # CV aprovado - adicionar signed_url
             cv_service = CVService()
             response_data['signed_url'] = cv_service.get_signed_url_for_curriculo(curriculo, user_id, request.role)
             response_data['expires_in_seconds'] = 900
+            response_data['message'] = "O seu currículo está aprovado."
         
         return Response(response_data, status=status.HTTP_200_OK)
 
