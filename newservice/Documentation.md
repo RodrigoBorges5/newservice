@@ -53,6 +53,105 @@ X-User-ID = [ID]
 **Permissão:** IsStudent (role=2)
 **Headers:** X-User-ID = [ID do estudante]
 
+### Request:
+
+**Content-Type:** multipart/form-data
+**Body:**  
+| Campo |   Tipo    | 
+|-------|-----------|
+|  cv   | File (PDF)| 
+
+Regras de validação do ficheiro  
+- O ficheiro é obrigatório  
+- Apenas ficheiros PDF  
+- Tamanho máximo permitido: 5MB  
+- O ficheiro é guardado com o nome fixo `cv.pdf`  
+- Uploads subsequentes sobrescrevem o ficheiro existente  
+
+### Respostas:
+
+
+**Upload do currículo efetuado com sucesso:**
+201 Created  
+{
+  "id": 12,
+  "file": "estudante_45/cv.pdf",
+  "status": 0
+}
+
+ 
+**Erro de validação do pedido:**
+400 Bad Request 
+
+Sem ficheiro  
+
+```json
+{
+  "detail": "Ficheiro de currículo é obrigatório."
+}
+```
+
+Ficheiro não PDF  
+
+```json
+{
+  "detail": "Apenas ficheiros PDF são permitidos."
+}
+```
+
+Ficheiro superior a 5MB  
+
+```json
+{
+  "detail": "O ficheiro excede o tamanho máximo de 5MB."
+}
+```
+
+
+**Utilizador não autenticado:**
+401 Unauthorized  
+
+```json
+{
+  "detail": "Authentication credentials were not provided."
+}
+```
+
+
+**Utilizador autenticado sem perfil de estudante:**
+404 Not Found  
+
+```json
+{
+  "detail": "Estudante não encontrado."
+}
+```
+
+
+**Erro ao efetuar upload do ficheiro para o Supabase Storage:**
+503 Service Unavailable  
+
+```json
+{
+  "detail": "Erro ao guardar o currículo."
+}
+```
+
+Garantia: nenhum registo de currículo é criado na base de dados.
+
+ 
+**Erro ao criar ou atualizar o registo Curriculo:**
+500 Internal Server Error 
+
+```json
+{
+  "detail": "Erro ao registar CV"
+}
+```
+
+Garantia: o ficheiro é removido do Storage (rollback).
+
+
 ### DELETE /curriculo/me/
 
 **Descrição:** Remove o currículo do estudante autenticado
