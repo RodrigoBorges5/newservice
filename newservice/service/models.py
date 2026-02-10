@@ -107,12 +107,34 @@ class CrCurriculo(models.Model):
         db_table = 'cr_curriculo'
 
 class Curriculo(models.Model):
+    #Constantes para status de currículo
+    CV_STATUS_PENDING = 0    # Pendente de validação
+    CV_STATUS_APPROVED = 1   # Aprovado pelo CR
+    CV_STATUS_REJECTED = 2   # Rejeitado pelo CR
+
+    #Constantes para status de currículo como tuplas
+    CV_STATUS_CHOICES = (
+        (CV_STATUS_PENDING, "Pendente de validação"),
+        (CV_STATUS_APPROVED, "Aprovado pelo CR"),
+        (CV_STATUS_REJECTED, "Rejeitado pelo CR"),
+    )
+
     file = models.CharField(blank=True, null=True)
-    status = models.IntegerField(blank=True, null=True)
+    status = models.IntegerField(choices=CV_STATUS_CHOICES, default=CV_STATUS_PENDING)
+    #usar curriculo.get_status_display() para obter a descrição do status
     descricao = models.TextField(blank=True, null=True)
     validated_date = models.DateField(blank=True, null=True)
     estudante_utilizador_auth_user_supabase_field = models.OneToOneField('Estudante', models.DO_NOTHING, db_column='estudante_utilizador_auth_user_supabase__id')  # Field renamed because it ended with '_'.
 
+    def is_pending(self):
+        return self.status == self.CV_STATUS_PENDING
+
+    def is_approved(self):
+        return self.status == self.CV_STATUS_APPROVED
+
+    def is_rejected(self):
+        return self.status == self.CV_STATUS_REJECTED
+    
     class Meta:
         managed = False
         db_table = 'curriculo'
