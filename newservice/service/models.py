@@ -5,6 +5,7 @@
 #   * Make sure each ForeignKey and OneToOneField has `on_delete` set to the desired behavior
 #   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
 # Feel free to rename the models, but don't rename db_table values or field names.
+from time import timezone
 import uuid
 
 from django.db import models
@@ -99,13 +100,43 @@ class Cr(models.Model):
         db_table = 'cr'
 
 class CrCurriculo(models.Model):
-    cr_utilizador_auth_user_supabase_field = models.ForeignKey(Cr, models.DO_NOTHING, db_column='cr_utilizador_auth_user_supabase__id')  # Field renamed because it ended with '_'.
-    curriculo = models.OneToOneField('Curriculo', models.DO_NOTHING, primary_key=True)
+    cr_utilizador_auth_user_supabase_field = models.ForeignKey(
+        'Cr',
+        models.DO_NOTHING,
+        db_column='cr_utilizador_auth_user_supabase__id',
+        related_name='curriculo_reviews'
+    )
 
+    curriculo = models.ForeignKey(
+        'Curriculo',
+        models.DO_NOTHING,
+        related_name='reviews'
+    )
+
+    # auditoria
+    feedback = models.TextField(
+        null=True,
+        blank=True
+    )
+
+    review_date = models.DateField(
+        null=True,
+        blank=True
+    )
+
+    def create_review(self, feedback=None):
+        """
+        Cria e salva um registo de validação (review) de um currículo por um CR.
+        """
+        self.feedback = feedback
+        self.review_date = timezone.now().date()
+        self.save()
+        return self
+    
     class Meta:
         managed = False
         db_table = 'cr_curriculo'
-
+        ordering = ['-review_date']
 class Curriculo(models.Model):
     #Constantes para status de currículo
     CV_STATUS_PENDING = 0    # Pendente de validação
@@ -139,6 +170,9 @@ class Curriculo(models.Model):
         managed = False
         db_table = 'curriculo'
 
+    def get_latest_review(self):
+        return self.reviews.first()
+    
 class CVAccessLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     curriculo = models.ForeignKey('Curriculo', on_delete=models.CASCADE)
