@@ -173,6 +173,16 @@ class Curriculo(models.Model):
     def get_latest_review(self):
         return self.reviews.first()
     
+    def approve(self):
+        self.status = self.CV_STATUS_APPROVED
+        self.validated_date = timezone.now().date()
+        self.save(update_fields=["status", "validated_date"])
+
+    def reject(self):
+        self.status = self.CV_STATUS_REJECTED
+        self.validated_date = timezone.now().date()
+        self.save(update_fields=["status", "validated_date"])
+
 class CVAccessLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     curriculo = models.ForeignKey('Curriculo', on_delete=models.CASCADE)

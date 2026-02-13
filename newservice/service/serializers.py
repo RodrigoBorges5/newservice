@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Curriculo, Vaga, Area, VagaArea, CVAccessLog, CV_STATUS_LABELS
+from .models import Curriculo,Cr, CrCurriculo, Vaga, Area, VagaArea, CVAccessLog, CV_STATUS_LABELS
+from django.utils import timezone
 
 class CVAccessLogSerializer(serializers.ModelSerializer):
     """Serializer para CVAccessLog - histórico de acessos."""
@@ -185,4 +186,92 @@ class VagaSerializer(serializers.ModelSerializer):
         
         return representation
 
+class CRReviewSerializer(serializers.Serializer):
+    curriculo_id = serializers.IntegerField(read_only = False)
+    status = serializers.ChoiceField(choices=((Curriculo.CV_STATUS_APPROVED, "Aprovado"),(Curriculo.CV_STATUS_REJECTED, "Rejeitado")))
+    feedback = serializers.CharField(allow_blank=True,allow_null=True,required=False)
+    review_date = serializers.DateField(read_only=True)
 
+    def validate_curriculo_id(self, value):
+        try:
+            curriculo = Curriculo.objects.get(id=value)
+        except Curriculo.DoesNotExist:
+            raise serializers.ValidationError("Currículo não encontrado.")
+
+        if not curriculo.is_pending():
+            raise serializers.ValidationError(
+                "Este currículo já foi validado."
+            )
+
+        return value
+
+    def validate(self, attrs):
+        status = attrs.get("status")
+        feedback = attrs.get("feedback")
+
+        # Se rejeitado, é obrigatório dar feedback
+        if status == Curriculo.CV_STATUS_REJECTED and not feedback:
+            raise serializers.ValidationError({
+                "feedback": "Feedback é obrigatório quando o currículo é rejeitado."
+            })
+
+        # Não faz sentido voltar para status pendente (0)
+        if status == Curriculo.CV_STATUS_PENDING:
+            raise serializers.ValidationError({
+                "status": "Status inválido.Não é permitido voltar o currículo para o estado pendente."
+            })
+
+        # Apenas aprovado ou rejeitado são permitidos (1 ou 2)
+        if status not in (
+            Curriculo.CV_STATUS_APPROVED,
+            Curriculo.CV_STATUS_REJECTED,
+        ):
+            raise serializers.ValidationError({
+                "status": "Status inválido. Valores permitidos: aprovado ou rejeitado."
+            })
+
+        return attrs
+
+
+    def create(self, validated_data):
+        request = self.context["request"]
+
+        curriculo = Curriculo.objects.get(id=validated_data["curriculo_id"])
+
+        try:
+            cr = Cr.objects.get(
+                utilizador_auth_user_supabase_field=request.user.utilizador
+            )
+        except Cr.DoesNotExist:
+            raise serializers.ValidationError(
+                "Utilizador autenticado não é um CR válido."
+            )
+
+        status = validated_data["status"]
+        feedback = validated_data.get("feedback")
+
+        if status == Curriculo.CV_STATUS_APPROVED:
+            curriculo.approve()
+        elif status == Curriculo.CV_STATUS_REJECTED:
+            curriculo.reject(feedback=feedback)
+
+        # Criação da review
+        review = CrCurriculo.objects.create(
+            cr_utilizador_auth_user_supabase_field=cr,
+            curriculo=curriculo,
+            feedback=feedback,
+            review_date=curriculo.validated_date,
+        )
+        return review
+
+class CRReviewResponseSerializer(serializers.Serializer):
+    curriculo_id = serializers.IntegerField(source="curriculo.id")
+    status = serializers.SerializerMethodField()
+    feedback = serializers.CharField(allow_blank=True, allow_null=True)
+    review_date = serializers.DateField()
+    validated_by = serializers.CharField(
+        source="cr_utilizador_auth_user_supabase_field.utilizador_auth_user_supabase_field.nome"
+    )
+
+    def get_status(self, obj):
+        return obj.curriculo.get_status_display()
