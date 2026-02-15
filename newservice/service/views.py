@@ -16,7 +16,8 @@ from service.services.storage_service import SupabaseStorageService
 from service.services.cv_service import CVService
 from service.services.exceptions import StorageUploadException, StorageSignedUrlException
 from django.conf import settings
-from django.db import transactionfrom .filters import VagaFilterSet
+from django.db import transaction
+from .filters import VagaFilterSet
 
 
 
