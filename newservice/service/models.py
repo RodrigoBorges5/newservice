@@ -320,3 +320,83 @@ class VagaArea(models.Model):
     class Meta:
         managed = False
         db_table = 'vaga_area'
+
+
+class Notification(models.Model):
+    """
+    Modelo de notificação para utilizadores.
+
+    Regista notificações enviadas (e.g., alteração de estado do CV)
+    e permite rastreio de envio e leitura.
+
+    Tipos de notificação:
+        - cv_status_change: Alteração de estado do currículo
+        - cv_feedback: Feedback sobre o currículo
+
+    Estados de envio:
+        - sent: Enviado com sucesso
+        - failed: Falha no envio
+    """
+
+    TYPE_CHOICES = [
+        ('cv_status_change', 'Alteração de estado do CV'),
+        ('cv_feedback', 'Feedback do CV'),
+    ]
+
+    STATUS_CHOICES = [
+        ('sent', 'Enviado'),
+        ('failed', 'Falha'),
+    ]
+
+    recipient_user_id = models.UUIDField(
+        db_index=True,
+        help_text="UUID do utilizador destinatário (Supabase Auth ID)",
+    )
+    recipient_email = models.EmailField(
+        max_length=254,
+        help_text="Email do destinatário no momento do envio",
+    )
+    type = models.CharField(
+        max_length=50,
+        choices=TYPE_CHOICES,
+        db_index=True,
+        help_text="Tipo de notificação",
+    )
+    subject = models.CharField(
+        max_length=255,
+        help_text="Assunto do email enviado",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        db_index=True,
+        help_text="Estado de envio da notificação",
+    )
+    error_message = models.TextField(
+        blank=True,
+        default="",
+        help_text="Mensagem de erro em caso de falha",
+    )
+    read = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Se a notificação foi lida pelo utilizador",
+    )
+    curriculo = models.ForeignKey(
+        'Curriculo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='notifications',
+        db_constraint=False,
+        help_text="Currículo associado à notificação (se aplicável)",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'notification'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Notification({self.type}, {self.status}) -> {self.recipient_email}"

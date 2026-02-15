@@ -204,3 +204,127 @@ Garantia: o ficheiro é removido do Storage (rollback).
 
 - `page` - Número da página (padrão: 1)
 - `page_size` - Registos por página (padrão: 50, máximo: 100)
+
+---
+
+## Endpoints de Notificações
+
+### GET /curriculo/notifications/
+
+**Descrição:** Lista as notificações do utilizador autenticado (e.g., alterações de estado do CV, feedback).
+
+**Permissões:**
+| Role | Acesso |
+|------|--------|
+| Estudante (2) | Apenas as suas notificações |
+| CR (0) | Todas as notificações; pode filtrar por estudante |
+| Empresa (1) | 403 Forbidden |
+
+**Filtros (query params):**
+
+| Parâmetro   | Tipo   | Descrição                                              |
+| ----------- | ------ | ------------------------------------------------------ |
+| `type`      | string | Tipo de notificação: `cv_status_change`, `cv_feedback` |
+| `status`    | string | Estado de envio: `sent`, `failed`                      |
+| `date_from` | date   | Data inicial (YYYY-MM-DD)                              |
+| `date_to`   | date   | Data final (YYYY-MM-DD)                                |
+| `student`   | UUID   | UUID do estudante (apenas CR)                          |
+
+**Ordenação:**
+
+- Campos: `created_at`, `updated_at`, `type`, `status`
+- Utilizar `?ordering=campo` ou `?ordering=-campo` (descendente)
+- Padrão: `-created_at` (mais recentes primeiro)
+
+**Paginação:**
+
+- `page` - Número da página (padrão: 1)
+- `page_size` - Registos por página (padrão: 20, máximo: 100)
+
+**Exemplo de pedido:**
+
+```
+GET /service/curriculo/notifications/?type=cv_status_change&status=sent&ordering=-created_at
+X-User-ID: <uuid-do-estudante>
+```
+
+**Resposta (200 OK):**
+
+```json
+{
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "type": "cv_status_change",
+      "subject": "🎉 O teu currículo foi aprovado!",
+      "status": "sent",
+      "recipient_email": "aluno@exemplo.pt",
+      "created_at": "2026-02-15T15:30:00Z",
+      "updated_at": "2026-02-15T15:30:00Z",
+      "read": false,
+      "curriculo": 42,
+      "error_message": ""
+    }
+  ]
+}
+```
+
+---
+
+### PATCH /curriculo/notifications/{id}/
+
+**Descrição:** Marca uma notificação como lida (ou não lida).
+
+**Permissões:**
+
+- Estudante: apenas as suas próprias notificações
+- CR: qualquer notificação
+- Empresa: 403 Forbidden
+
+**Body (JSON):**
+
+```json
+{
+  "read": true
+}
+```
+
+**Resposta (200 OK):**
+
+```json
+{
+  "id": 1,
+  "read": true
+}
+```
+
+**Erros:**
+| Código | Descrição |
+|--------|-----------|
+| 401 | Header `X-User-ID` em falta |
+| 403 | Sem permissão (Empresa, ou estudante a alterar notificação de outrem) |
+| 404 | Notificação não encontrada |
+| 405 | Método não permitido (POST, PUT, DELETE) |
+
+---
+
+### Modelo Notification
+
+| Campo               | Tipo     | Descrição                           |
+| ------------------- | -------- | ----------------------------------- |
+| `id`                | int      | Chave primária (auto-incremento)    |
+| `recipient_user_id` | UUID     | UUID do utilizador destinatário     |
+| `recipient_email`   | string   | Email no momento do envio           |
+| `type`              | string   | `cv_status_change` ou `cv_feedback` |
+| `subject`           | string   | Assunto do email enviado            |
+| `status`            | string   | `sent` ou `failed`                  |
+| `error_message`     | string   | Mensagem de erro (vazio se sucesso) |
+| `read`              | bool     | Se foi lida pelo utilizador         |
+| `curriculo`         | int/null | FK para o currículo associado       |
+| `created_at`        | datetime | Data de criação                     |
+| `updated_at`        | datetime | Data da última atualização          |
+
+As notificações são criadas automaticamente pela task `send_cv_status_notification` sempre que o estado de um CV é alterado (aprovado ou rejeitado).

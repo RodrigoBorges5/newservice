@@ -141,3 +141,17 @@ class IsCROrIsCompany(BasePermission):
 
     def has_permission(self, request, view):
         return getattr(request, "role", None) in [0, 1]
+
+
+class IsStudentOrCR(BasePermission):
+    """
+    Permite acesso a Estudantes (role=2) e CR (role=0).
+
+    Estudantes veem apenas as suas próprias notificações (filtragem
+    feita na view). CR pode ver todas ou filtrar por estudante.
+    Empresas (role=1) não têm acesso.
+    """
+    message = "Não possui permissão para efetuar esta ação. Apenas Estudantes ou CR podem aceder."
+
+    def has_permission(self, request, view):
+        return getattr(request, "role", None) in [0, 2]

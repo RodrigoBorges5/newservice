@@ -22,7 +22,7 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.tasks import task
 
-from .models import Curriculo
+from .models import Curriculo, Notification
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +177,16 @@ def send_cv_status_notification(
         email = _get_student_email(user_uuid)
     except Exception as e:
         logger.error("%s Falha ao obter email: %s", log_prefix, e)
+        # Registar notificação falhada (sem email)
+        Notification.objects.create(
+            recipient_user_id=user_uuid,
+            recipient_email="",
+            type="cv_status_change",
+            subject=f"CV {STATUS_LABELS.get(status, str(status))}",
+            status="failed",
+            error_message=f"Falha ao obter email: {e}",
+            curriculo_id=curriculo_id,
+        )
         return {
             "success": False,
             "curriculo_id": curriculo_id,
@@ -187,6 +197,11 @@ def send_cv_status_notification(
 
     # ── Preparar contexto e renderizar template ──────────────────────
     site_url = getattr(settings, "SITE_URL", "http://localhost:8000")
+
+    subject_map = {
+        1: "🎉 O teu currículo foi aprovado!",
+        2: "Resultado da validação do teu currículo",
+    }
 
     context = {
         "nome_estudante": nome_estudante,
@@ -199,6 +214,15 @@ def send_cv_status_notification(
         html_content, plain_text = _render_email(status, context)
     except Exception as e:
         logger.error("%s Falha ao renderizar template: %s", log_prefix, e)
+        Notification.objects.create(
+            recipient_user_id=user_uuid,
+            recipient_email=email,
+            type="cv_status_change",
+            subject=subject_map.get(status, "Notificação de CV"),
+            status="failed",
+            error_message=f"Falha ao renderizar template: {e}",
+            curriculo_id=curriculo_id,
+        )
         return {
             "success": False,
             "curriculo_id": curriculo_id,
@@ -208,11 +232,6 @@ def send_cv_status_notification(
         }
 
     # ── Enviar email ─────────────────────────────────────────────────
-    subject_map = {
-        1: "🎉 O teu currículo foi aprovado!",
-        2: "Resultado da validação do teu currículo",
-    }
-
     try:
         send_mail(
             subject=subject_map[status],
@@ -230,6 +249,16 @@ def send_cv_status_notification(
             STATUS_LABELS[status],
         )
 
+        # Registar notificação enviada com sucesso
+        Notification.objects.create(
+            recipient_user_id=user_uuid,
+            recipient_email=email,
+            type="cv_status_change",
+            subject=subject_map[status],
+            status="sent",
+            curriculo_id=curriculo_id,
+        )
+
         return {
             "success": True,
             "curriculo_id": curriculo_id,
@@ -244,6 +273,17 @@ def send_cv_status_notification(
             log_prefix,
             email,
             e,
+        )
+
+        # Registar notificação falhada
+        Notification.objects.create(
+            recipient_user_id=user_uuid,
+            recipient_email=email,
+            type="cv_status_change",
+            subject=subject_map[status],
+            status="failed",
+            error_message=str(e),
+            curriculo_id=curriculo_id,
         )
 
         return {

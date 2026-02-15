@@ -1,6 +1,54 @@
 import django_filters
 from django.db.models import Q
-from .models import Estudante, AreaEstudante, Area, Curriculo
+from .models import Estudante, AreaEstudante, Area, Curriculo, Notification
+
+
+class NotificationFilterSet(django_filters.FilterSet):
+    """
+    Filtros para o endpoint de notificações.
+
+    Parâmetros de query suportados:
+        - type: Tipo de notificação (cv_status_change, cv_feedback)
+        - status: Estado de envio (sent, failed)
+        - date_from: Data inicial (YYYY-MM-DD)
+        - date_to: Data final (YYYY-MM-DD)
+        - student: UUID do estudante (apenas para CR/Admin)
+    """
+
+    type = django_filters.CharFilter(
+        field_name='type',
+        lookup_expr='iexact',
+        label='Tipo de notificação',
+    )
+
+    status = django_filters.CharFilter(
+        field_name='status',
+        lookup_expr='iexact',
+        label='Estado de envio',
+    )
+
+    date_from = django_filters.DateFilter(
+        field_name='created_at',
+        lookup_expr='date__gte',
+        label='Data inicial (YYYY-MM-DD)',
+    )
+
+    date_to = django_filters.DateFilter(
+        field_name='created_at',
+        lookup_expr='date__lte',
+        label='Data final (YYYY-MM-DD)',
+    )
+
+    student = django_filters.UUIDFilter(
+        field_name='recipient_user_id',
+        label='UUID do estudante (apenas CR)',
+    )
+
+    class Meta:
+        model = Notification
+        fields = ['type', 'status', 'date_from', 'date_to', 'student']
+
+
 class EstudanteFilterSet(django_filters.FilterSet):
     
     
