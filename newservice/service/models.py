@@ -244,7 +244,7 @@ class Vaga(models.Model):
 
 class VagaArea(models.Model):
     pk = models.CompositePrimaryKey('vaga_id', 'area_id')
-    vaga = models.ForeignKey(Vaga, models.DO_NOTHING)
+    vaga = models.ForeignKey(Vaga, models.CASCADE)
     area = models.ForeignKey(Area, models.DO_NOTHING)
 
     class Meta:
