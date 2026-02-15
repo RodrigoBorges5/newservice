@@ -160,3 +160,12 @@ REST_FRAMEWORK = {
 # Supabase Configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+# Site URL (used in email templates)
+SITE_URL = os.getenv("SITE_URL", "http://localhost:8000")
+
+# Email Configuration
+# Em produção, alterar para 'django.core.mail.backends.smtp.EmailBackend'
+# e configurar EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@plataforma-estagios.pt")
