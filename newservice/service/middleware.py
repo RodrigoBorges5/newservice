@@ -79,23 +79,54 @@ class IsCR(BasePermission):
         return getattr(request, "role", None) == 0
 
 
-class IsCompanyOrReadOnly(BasePermission):
+class VagaPermission(BasePermission):
     """
-    Permite:
-    - Empresas (role=1): CRUD completo (GET, POST, PUT, PATCH, DELETE)
-    - CR (role=0) e Estudantes (role=2): apenas leitura (listagem) (GET, HEAD, OPTIONS)
+    Permissões para o endpoint /vagas/:
+    
+    - CR (role=0): CRUD completo (admin)
+    - Empresas (role=1): CRUD apenas para as suas próprias vagas
+    - Estudantes (role=2): Apenas leitura
     """
-    message = "Não possui permissão para efetuar esta ação. Apenas empresas podem criar, editar ou remover vagas."
+    message = "Não possui permissão para efetuar esta ação."
 
     def has_permission(self, request, view):
         role = getattr(request, "role", None)
         
-        # métodos seguros (leitura): CR e Student podem aceder
-        if request.method in ['GET', 'HEAD', 'OPTIONS']:
-            return role in [0, 1, 2]  # CR, Company, Student
+        # CR (role=0) e Company (role=1): podem aceder a endpoints de escrita
+        if role in [0, 1]:
+            return True
         
-        # métodos de escrita (POST, PUT, PATCH, DELETE): apenas Company
-        return role == 1 #criar
+        # Estudantes (role=2): apenas leitura
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return role == 2
+        
+        return False
+    
+    def has_object_permission(self, request, view, obj):
+        """
+        Verifica permissões ao nível do objeto (vaga específica).
+        Chamado em operações PUT, PATCH, DELETE em /vagas/{id}/
+        """
+        role = getattr(request, "role", None)
+        
+        # leitura permitida para todos os roles autorizados
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return True
+        
+        # CR (role=0): pode modificar/remover QUALQUER vaga (admin)
+        if role == 0:
+            return True
+        
+        # Company (role=1): só pode modificar/remover as SUAS vagas
+        if role == 1:
+            user_id = getattr(request, "user_id", None)
+            # verifica se a vaga pertence à empresa do utilizador
+            empresa_id = getattr(
+                obj, "empresa_utilizador_auth_user_supabase_field_id", None
+            )
+            return str(empresa_id) == str(user_id)
+        
+        return False
 class IsAll(BasePermission):
     """
     Permite acesso a todos os tipos de usuários autenticados.
@@ -113,3 +144,17 @@ class IsCROrIsCompany(BasePermission):
 
     def has_permission(self, request, view):
         return getattr(request, "role", None) in [0, 1]
+
+
+class IsStudentOrCR(BasePermission):
+    """
+    Permite acesso a Estudantes (role=2) e CR (role=0).
+
+    Estudantes veem apenas as suas próprias notificações (filtragem
+    feita na view). CR pode ver todas ou filtrar por estudante.
+    Empresas (role=1) não têm acesso.
+    """
+    message = "Não possui permissão para efetuar esta ação. Apenas Estudantes ou CR podem aceder."
+
+    def has_permission(self, request, view):
+        return getattr(request, "role", None) in [0, 2]
