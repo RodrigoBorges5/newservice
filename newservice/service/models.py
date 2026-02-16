@@ -141,53 +141,7 @@ class CVAccessLog(models.Model):
         managed = False
         db_table = 'cv_access_log'
 
-    def approve(self, feedback: str = "") -> None:
-        """
-        Aprova o currículo e dispara notificação por email ao estudante.
-
-        Args:
-            feedback: Comentário opcional do CR.
-        """
-        from datetime import date
-        from .tasks import send_cv_status_notification
-
-        self.status = self.STATUS_APROVADO
-        self.validated_date = date.today()
-        self.save()
-
-        send_cv_status_notification.enqueue(
-            curriculo_id=self.id,
-            status=self.STATUS_APROVADO,
-            feedback=feedback,
-        )
-
-    def reject(self, feedback: str = "") -> None:
-        """
-        Rejeita o currículo e dispara notificação por email ao estudante.
-
-        Args:
-            feedback: Comentário do CR (obrigatório).
-
-        Raises:
-            ValueError: Se feedback não for fornecido.
-        """
-        from datetime import date
-        from .tasks import send_cv_status_notification
-
-        if not feedback:
-            raise ValueError(
-                "Feedback é obrigatório para rejeição de currículo."
-            )
-
-        self.status = self.STATUS_REJEITADO
-        self.validated_date = date.today()
-        self.save()
-
-        send_cv_status_notification.enqueue(
-            curriculo_id=self.id,
-            status=self.STATUS_REJEITADO,
-            feedback=feedback,
-        )
+    
 
 
 class DjangoAdminLog(models.Model):

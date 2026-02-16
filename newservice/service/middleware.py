@@ -121,7 +121,10 @@ class VagaPermission(BasePermission):
         if role == 1:
             user_id = getattr(request, "user_id", None)
             # verifica se a vaga pertence à empresa do utilizador
-            return str(obj.empresa_utilizador_auth_user_supabase_field) == str(user_id)
+            empresa_id = getattr(
+                obj, "empresa_utilizador_auth_user_supabase_field_id", None
+            )
+            return str(empresa_id) == str(user_id)
         
         return False
 class IsAll(BasePermission):
