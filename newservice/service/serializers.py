@@ -1,6 +1,8 @@
 from rest_framework import serializers
-from .models import Curriculo,Cr, CrCurriculo, Vaga, Area, VagaArea, CVAccessLog, CV_STATUS_LABELS
+from .models import Curriculo,Cr, CrCurriculo, Vaga, Area, VagaArea, CVAccessLog, CV_STATUS_LABELS, Notification
+
 from django.utils import timezone
+
 
 class CVAccessLogSerializer(serializers.ModelSerializer):
     """Serializer para CVAccessLog - histórico de acessos."""
@@ -34,6 +36,35 @@ class CVSignedUrlSerializer(serializers.Serializer):
     def get_status_label(self, obj):
         """Converte status numérico para label legível."""
         return CV_STATUS_LABELS.get(obj.get('status'), 'desconhecido')
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    """Serializer para listagem de notificações."""
+
+    class Meta:
+        model = Notification
+        fields = [
+            'id',
+            'type',
+            'subject',
+            'status',
+            'recipient_email',
+            'created_at',
+            'updated_at',
+            'read',
+            'curriculo',
+            'error_message',
+        ]
+        read_only_fields = fields
+
+
+class NotificationReadSerializer(serializers.ModelSerializer):
+    """Serializer para marcar notificação como lida (PATCH)."""
+
+    class Meta:
+        model = Notification
+        fields = ['id', 'read']
+        read_only_fields = ['id']
 
 
 class AreaSerializer(serializers.Serializer):

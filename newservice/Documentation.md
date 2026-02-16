@@ -8,15 +8,15 @@ Guia para endpoints com exemplos e respostas:
 
 Resposta sem Header:
 {
-    "detail": "Header X-User-ID em falta"
+"detail": "Header X-User-ID em falta"
 }
 
 Resposta com Header X-User_ID:
 X-User-ID = [ID]
 {
-    "status": "ok",
-    "user_id": [ID]
-    "user_role": [tipo de utilizador]
+"status": "ok",
+"user_id": [ID]
+"user_role": [tipo de utilizador]
 }
 
 **T.1.4 - Role Authentication - Qualquer URL com limitação de role**
@@ -24,15 +24,15 @@ X-User-ID = [ID]
 
 Resposta sem role estudante:
 {
-    "detail": "Não possui permição para efetuar esta ação."
+"detail": "Não possui permição para efetuar esta ação."
 }
 
 Resposta com Header X-User_ID:
 X-User-ID = [ID]
 {
-    "status": "ok",
-    "user_id": [ID],
-    "user_role": 2
+"status": "ok",
+"user_id": [ID],
+"user_role": 2
 }
 
 ---
@@ -57,33 +57,32 @@ X-User-ID = [ID]
 
 **Content-Type:** multipart/form-data
 **Body:**  
-| Campo |   Tipo    | 
+| Campo | Tipo |
 |-------|-----------|
-|  cv   | File (PDF)| 
+| cv | File (PDF)|
 
-Regras de validação do ficheiro  
-- O ficheiro é obrigatório  
-- Apenas ficheiros PDF  
-- Tamanho máximo permitido: 5MB  
-- O ficheiro é guardado com o nome fixo `cv.pdf`  
-- Uploads subsequentes sobrescrevem o ficheiro existente  
+Regras de validação do ficheiro
+
+- O ficheiro é obrigatório
+- Apenas ficheiros PDF
+- Tamanho máximo permitido: 5MB
+- O ficheiro é guardado com o nome fixo `cv.pdf`
+- Uploads subsequentes sobrescrevem o ficheiro existente
 
 ### Respostas:
-
 
 **Upload do currículo efetuado com sucesso:**
 201 Created  
 {
-  "id": 12,
-  "file": "estudante_45/cv.pdf",
-  "status": 0
+"id": 12,
+"file": "estudante_45/cv.pdf",
+"status": 0
 }
 
- 
 **Erro de validação do pedido:**
-400 Bad Request 
+400 Bad Request
 
-Sem ficheiro  
+Sem ficheiro
 
 ```json
 {
@@ -91,7 +90,7 @@ Sem ficheiro
 }
 ```
 
-Ficheiro não PDF  
+Ficheiro não PDF
 
 ```json
 {
@@ -99,7 +98,7 @@ Ficheiro não PDF
 }
 ```
 
-Ficheiro superior a 5MB  
+Ficheiro superior a 5MB
 
 ```json
 {
@@ -107,9 +106,8 @@ Ficheiro superior a 5MB
 }
 ```
 
-
 **Utilizador não autenticado:**
-401 Unauthorized  
+401 Unauthorized
 
 ```json
 {
@@ -117,9 +115,8 @@ Ficheiro superior a 5MB
 }
 ```
 
-
 **Utilizador autenticado sem perfil de estudante:**
-404 Not Found  
+404 Not Found
 
 ```json
 {
@@ -127,9 +124,8 @@ Ficheiro superior a 5MB
 }
 ```
 
-
 **Erro ao efetuar upload do ficheiro para o Supabase Storage:**
-503 Service Unavailable  
+503 Service Unavailable
 
 ```json
 {
@@ -139,9 +135,8 @@ Ficheiro superior a 5MB
 
 Garantia: nenhum registo de currículo é criado na base de dados.
 
- 
 **Erro ao criar ou atualizar o registo Curriculo:**
-500 Internal Server Error 
+500 Internal Server Error
 
 ```json
 {
@@ -150,7 +145,6 @@ Garantia: nenhum registo de currículo é criado na base de dados.
 ```
 
 Garantia: o ficheiro é removido do Storage (rollback).
-
 
 ### DELETE /curriculo/me/
 
@@ -210,3 +204,127 @@ Garantia: o ficheiro é removido do Storage (rollback).
 
 - `page` - Número da página (padrão: 1)
 - `page_size` - Registos por página (padrão: 50, máximo: 100)
+
+---
+
+## Endpoints de Notificações
+
+### GET /curriculo/notifications/
+
+**Descrição:** Lista as notificações do utilizador autenticado (e.g., alterações de estado do CV, feedback).
+
+**Permissões:**
+| Role | Acesso |
+|------|--------|
+| Estudante (2) | Apenas as suas notificações |
+| CR (0) | Todas as notificações; pode filtrar por estudante |
+| Empresa (1) | 403 Forbidden |
+
+**Filtros (query params):**
+
+| Parâmetro   | Tipo   | Descrição                                              |
+| ----------- | ------ | ------------------------------------------------------ |
+| `type`      | string | Tipo de notificação: `cv_status_change`, `cv_feedback` |
+| `status`    | string | Estado de envio: `sent`, `failed`                      |
+| `date_from` | date   | Data inicial (YYYY-MM-DD)                              |
+| `date_to`   | date   | Data final (YYYY-MM-DD)                                |
+| `student`   | UUID   | UUID do estudante (apenas CR)                          |
+
+**Ordenação:**
+
+- Campos: `created_at`, `updated_at`, `type`, `status`
+- Utilizar `?ordering=campo` ou `?ordering=-campo` (descendente)
+- Padrão: `-created_at` (mais recentes primeiro)
+
+**Paginação:**
+
+- `page` - Número da página (padrão: 1)
+- `page_size` - Registos por página (padrão: 20, máximo: 100)
+
+**Exemplo de pedido:**
+
+```
+GET /service/curriculo/notifications/?type=cv_status_change&status=sent&ordering=-created_at
+X-User-ID: <uuid-do-estudante>
+```
+
+**Resposta (200 OK):**
+
+```json
+{
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "type": "cv_status_change",
+      "subject": "🎉 O teu currículo foi aprovado!",
+      "status": "sent",
+      "recipient_email": "aluno@exemplo.pt",
+      "created_at": "2026-02-15T15:30:00Z",
+      "updated_at": "2026-02-15T15:30:00Z",
+      "read": false,
+      "curriculo": 42,
+      "error_message": ""
+    }
+  ]
+}
+```
+
+---
+
+### PATCH /curriculo/notifications/{id}/
+
+**Descrição:** Marca uma notificação como lida (ou não lida).
+
+**Permissões:**
+
+- Estudante: apenas as suas próprias notificações
+- CR: qualquer notificação
+- Empresa: 403 Forbidden
+
+**Body (JSON):**
+
+```json
+{
+  "read": true
+}
+```
+
+**Resposta (200 OK):**
+
+```json
+{
+  "id": 1,
+  "read": true
+}
+```
+
+**Erros:**
+| Código | Descrição |
+|--------|-----------|
+| 401 | Header `X-User-ID` em falta |
+| 403 | Sem permissão (Empresa, ou estudante a alterar notificação de outrem) |
+| 404 | Notificação não encontrada |
+| 405 | Método não permitido (POST, PUT, DELETE) |
+
+---
+
+### Modelo Notification
+
+| Campo               | Tipo     | Descrição                           |
+| ------------------- | -------- | ----------------------------------- |
+| `id`                | int      | Chave primária (auto-incremento)    |
+| `recipient_user_id` | UUID     | UUID do utilizador destinatário     |
+| `recipient_email`   | string   | Email no momento do envio           |
+| `type`              | string   | `cv_status_change` ou `cv_feedback` |
+| `subject`           | string   | Assunto do email enviado            |
+| `status`            | string   | `sent` ou `failed`                  |
+| `error_message`     | string   | Mensagem de erro (vazio se sucesso) |
+| `read`              | bool     | Se foi lida pelo utilizador         |
+| `curriculo`         | int/null | FK para o currículo associado       |
+| `created_at`        | datetime | Data de criação                     |
+| `updated_at`        | datetime | Data da última atualização          |
+
+As notificações são criadas automaticamente pela task `send_cv_status_notification` sempre que o estado de um CV é alterado (aprovado ou rejeitado).

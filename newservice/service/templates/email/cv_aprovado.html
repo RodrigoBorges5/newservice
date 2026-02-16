@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Currículo Aprovado</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 30px auto;
+        background: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background-color: #28a745;
+        color: #ffffff;
+        padding: 24px;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 24px;
+      }
+      .body {
+        padding: 24px;
+        color: #333333;
+        line-height: 1.6;
+      }
+      .body h2 {
+        color: #28a745;
+      }
+      .steps {
+        background-color: #f8f9fa;
+        border-left: 4px solid #28a745;
+        padding: 16px;
+        margin: 16px 0;
+        border-radius: 4px;
+      }
+      .steps ol {
+        margin: 8px 0;
+        padding-left: 20px;
+      }
+      .btn {
+        display: inline-block;
+        background-color: #28a745;
+        color: #ffffff;
+        text-decoration: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        margin-top: 16px;
+        font-weight: bold;
+      }
+      .footer {
+        background-color: #f8f9fa;
+        padding: 16px;
+        text-align: center;
+        font-size: 12px;
+        color: #888888;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🎉 Parabéns, {{ nome_estudante }}!</h1>
+      </div>
+      <div class="body">
+        <p>
+          Temos o prazer de informar que o seu currículo foi
+          <strong>aprovado</strong> pela equipa CR!
+        </p>
+
+        <h2>✅ Próximos Passos</h2>
+        <div class="steps">
+          <ol>
+            <li>O seu perfil está agora visível para empresas parceiras.</li>
+            <li>Explore as vagas disponíveis na plataforma.</li>
+            <li>Candidate-se às oportunidades que se adequam ao seu perfil.</li>
+            <li>
+              Mantenha o seu currículo atualizado para melhores resultados.
+            </li>
+          </ol>
+        </div>
+
+        <p>Aceda à plataforma para começar a explorar oportunidades:</p>
+        <a href="{{ site_url }}" class="btn">Aceder à Plataforma</a>
+
+        <p style="margin-top: 24px">Boa sorte na sua jornada profissional!</p>
+      </div>
+      <div class="footer">
+        <p>Este email foi enviado automaticamente. Por favor, não responda.</p>
+        <p>&copy; {{ ano_atual }} NewService</p>
+      </div>
+    </div>
+  </body>
+</html>

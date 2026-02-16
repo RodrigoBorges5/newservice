@@ -4,17 +4,21 @@ from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import BasePermission, AllowAny
+from rest_framework.filters import OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
-from .middleware import IsCompany, IsCR, IsStudent, IsCompanyOrReadOnly, IsAll, IsCROrIsCompany
-from .models import Curriculo, Estudante, Vaga, CVAccessLog, CV_STATUS_LABELS
-from .serializers import CurriculoSerializer, VagaSerializer, CVSignedUrlSerializer, CVAccessLogSerializer
+from .middleware import IsCompany, IsCR, IsStudent, VagaPermission, IsAll, IsCROrIsCompany, IsStudentOrCR
+from .models import Curriculo, Estudante, Vaga, CVAccessLog, CV_STATUS_LABELS, Notification
+from .serializers import CurriculoSerializer, VagaSerializer, CVSignedUrlSerializer, CVAccessLogSerializer, NotificationSerializer, NotificationReadSerializer
 from .filters import CurriculoFilterSet
 from service.services.storage_service import SupabaseStorageService
 from service.services.cv_service import CVService
 from service.services.exceptions import StorageUploadException, StorageSignedUrlException
 from django.conf import settings
 from django.db import transaction
+from .filters import VagaFilterSet, NotificationFilterSet
+
 
 
 def idex(request):
@@ -375,21 +379,41 @@ class VagaViewSet(viewsets.ModelViewSet):
     """
     ViewSet para CRUD de vagas.
     
-    permissões:
-    - Empresas (role=1): Podem criar, editar, apagar e listar vagas
-    - CR (role=0) e Estudantes (role=2): Apenas podem listar vagas
+    Permissões:
+    - CR (role=0): CRUD completo (admin) - pode criar, editar, apagar e listar todas as vagas
+    - Empresas (role=1): CRUD próprio - pode criar, editar, apagar apenas suas vagas
+    - Estudantes (role=2): Apenas leitura - pode listar e ver detalhes das vagas
     
-    endpoints:
-    - GET /vagas/ - Lista todas as vagas
+    Endpoints:
+    - GET /vagas/ - Lista todas as vagas (paginado, ordenado por id)
     - GET /vagas/?mine=true - Lista apenas vagas da empresa logada
-    - POST /vagas/ - Cria nova vaga (apenas empresas)
+    - POST /vagas/ - Cria nova vaga (CR e Empresas)
     - GET /vagas/{id}/ - Detalhes de uma vaga
-    - PUT/PATCH /vagas/{id}/ - Atualiza vaga (apenas empresas)
-    - DELETE /vagas/{id}/ - Remove vaga (apenas empresas)
+    - PUT/PATCH /vagas/{id}/ - Atualiza vaga (CR e Empresas, com verificação de propriedade)
+    - DELETE /vagas/{id}/ - Remove vaga (CR e Empresas, com verificação de propriedade)
+    
+    Filtros (via query params):
+    - oportunidade: tipo de oportunidade (case-insensitive) - estagio, emprego, projeto
+    - area: nome(s) de área (case-insensitive) - ?area=Informatica&area=Marketing
+    - area_match: modo de combinação de áreas - 'or' (default) ou 'and'
+    - visualizacoes_min: mínimo de visualizações
+    - visualizacoes_max: máximo de visualizações
+    
+    Paginação:
+    - page: número da página (default: 1)
+    - page_size: itens por página (default: 20)
+    
+    Ordenação:
+    - Ordenado por id ascendente por padrão
+    - Pode usar ?ordering=campo para alterar (ex: ?ordering=-id para descendente)
     """
-    queryset = Vaga.objects.all()
+    queryset = Vaga.objects.all().order_by('id')
     serializer_class = VagaSerializer
-    permission_classes = [IsCompanyOrReadOnly]
+    permission_classes = [VagaPermission]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = VagaFilterSet
+    ordering_fields = ['id', 'nome', 'visualizacoes', 'candidaturas']
+    ordering = ['id']  # Ordenação padrão
     
     def get_queryset(self):
         """
@@ -397,8 +421,10 @@ class VagaViewSet(viewsets.ModelViewSet):
         
         Query params:
         - mine=true: Retorna apenas vagas da empresa logada
+        
+        Ordenação padrão: id ascendente
         """
-        queryset = Vaga.objects.all()
+        queryset = Vaga.objects.all().order_by('id')
         
         # Filtro "minhas vagas"
         mine = self.request.query_params.get('mine', None)
@@ -409,4 +435,93 @@ class VagaViewSet(viewsets.ModelViewSet):
             )
         
         return queryset
-    
+
+
+class NotificationPagination(PageNumberPagination):
+    """Paginação para listagem de notificações - 20 por página."""
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class NotificationViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para consulta e gestão de notificações do utilizador.
+
+    Endpoints:
+        GET  /curriculo/notifications/          - Lista notificações
+        PATCH /curriculo/notifications/{id}/     - Marca notificação como lida
+
+    Permissões:
+        - Estudante (role=2): vê apenas as suas notificações.
+        - CR (role=0): vê todas; pode filtrar por ``?student=<uuid>``.
+        - Empresa (role=1): 403 Forbidden.
+
+    Filtros (query params):
+        - type: cv_status_change | cv_feedback
+        - status: sent | failed
+        - date_from: YYYY-MM-DD (data inicial)
+        - date_to: YYYY-MM-DD (data final)
+        - student: UUID do estudante (apenas CR)
+
+    Ordenação:
+        - Campos: created_at, updated_at, type, status
+        - Padrão: -created_at (mais recentes primeiro)
+
+    Paginação:
+        - page: número da página (default: 1)
+        - page_size: registos por página (default: 20, máximo: 100)
+    """
+
+    permission_classes = [IsStudentOrCR]
+    pagination_class = NotificationPagination
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = NotificationFilterSet
+    ordering_fields = ['created_at', 'updated_at', 'type', 'status']
+    ordering = ['-created_at']
+    http_method_names = ['get', 'patch', 'head', 'options']
+
+    def get_serializer_class(self):
+        if self.action == 'partial_update':
+            return NotificationReadSerializer
+        return NotificationSerializer
+
+    def get_queryset(self):
+        """
+        Filtra notificações com base no role do utilizador.
+
+        - Estudante: ``recipient_user_id == request.user_id``
+        - CR: todas; opcionalmente filtrado por ``?student=<uuid>``
+        """
+        role = getattr(self.request, 'role', None)
+        user_id = getattr(self.request, 'user_id', None)
+
+        if role == 2:
+            # Estudante vê apenas as suas notificações
+            return Notification.objects.filter(recipient_user_id=user_id)
+
+        # CR (role=0) vê todas
+        return Notification.objects.all()
+
+    def partial_update(self, request, *args, **kwargs):
+        """
+        PATCH /curriculo/notifications/{id}/
+
+        Apenas o campo ``read`` pode ser alterado. O estudante só pode
+        atualizar as suas próprias notificações; CR pode atualizar qualquer uma.
+        """
+        instance = self.get_object()
+        role = getattr(request, 'role', None)
+        user_id = getattr(request, 'user_id', None)
+
+        # Estudante só pode alterar as suas notificações
+        if role == 2 and str(instance.recipient_user_id) != str(user_id):
+            return Response(
+                {"detail": "Não pode alterar notificações de outro utilizador."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)

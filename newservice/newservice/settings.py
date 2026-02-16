@@ -164,3 +164,11 @@ SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 #file configuration
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 ALLOWED_MIME = "application/pdf"
+# Site URL (used in email templates)
+SITE_URL = os.getenv("SITE_URL", "http://localhost:8000")
+
+# Email Configuration
+# Em produção, alterar para 'django.core.mail.backends.smtp.EmailBackend'
+# e configurar EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@plataforma-estagios.pt")
