@@ -328,3 +328,165 @@ X-User-ID: <uuid-do-estudante>
 | `updated_at`        | datetime | Data da última atualização          |
 
 As notificações são criadas automaticamente pela task `send_cv_status_notification` sempre que o estado de um CV é alterado (aprovado ou rejeitado).
+
+# API Documentation – CR Review de Currículos
+
+## Endpoints de Review de Currículo (CR)
+
+### POST /curriculo/{id}/review/
+
+**Descrição:**
+Endpoint utilizado por utilizadores com role **CR (0)** para validar um currículo pendente, aprovando ou rejeitando o CV e opcionalmente adicionando feedback.
+
+**Permissão:** IsCR (role=0)
+
+**Headers obrigatórios:**
+
+```
+X-User-ID: <uuid-do-cr>
+```
+
+---
+
+## Request
+
+**Content-Type:** application/json
+
+### Body
+
+```json
+{
+  "curriculo_id": 42,
+  "status": 1,
+  "feedback": "Perfil técnico sólido"
+}
+```
+
+### Campos
+
+| Campo        | Tipo    | Obrigatório | Descrição                                   |
+| ------------ | ------- | ----------- | ------------------------------------------- |
+| curriculo_id | integer | Sim         | ID do currículo a validar                   |
+| status       | integer | Sim         | Novo estado do CV (1=aprovado, 2=rejeitado) |
+| feedback     | string  | Condicional | Obrigatório se status=2 (rejeitado)         |
+
+---
+
+## Regras de Validação
+
+* Apenas currículos com estado **PENDING (0)** podem ser validados
+* Não é permitido voltar um currículo ao estado PENDING
+* `status` só aceita os valores:
+
+  * `1` – aprovado
+  * `2` – rejeitado
+* Se `status = 2`, o campo `feedback` é obrigatório
+* O currículo deve existir
+* Apenas utilizadores CR podem executar esta ação
+
+---
+
+## Comportamento Interno
+
+Consoante o valor de `status`, o sistema executa:
+
+* `curriculo.approve(cr_user)` se status = 1
+* `curriculo.reject(cr_user, feedback)` se status = 2
+
+Durante o processo:
+
+* O currículo muda de estado
+* A data de validação é automaticamente registada
+* É criado um registo de review (`CrCurriculo`)
+* São disparadas notificações automáticas para o estudante
+
+---
+
+## Response
+
+### Sucesso – 200 OK
+
+```json
+{
+  "curriculo_id": 42,
+  "status": "Aprovado",
+  "feedback": "Perfil técnico sólido",
+  "review_date": "2026-02-16",
+  "validated_by": "João Silva"
+}
+```
+
+### Campos de Resposta
+
+| Campo        | Tipo        | Descrição                             |
+| ------------ | ----------- | ------------------------------------- |
+| curriculo_id | integer     | ID do currículo validado              |
+| status       | string      | Estado legível (Aprovado / Rejeitado) |
+| feedback     | string/null | Feedback do CR                        |
+| review_date  | date        | Data da validação                     |
+| validated_by | string      | Nome do CR que validou                |
+
+---
+
+## Erros Comuns
+
+### Currículo não encontrado – 404 Not Found
+
+```json
+{
+  "detail": "Currículo não encontrado."
+}
+```
+
+### Currículo já validado – 400 Bad Request
+
+```json
+{
+  "detail": "Este currículo já foi validado."
+}
+```
+
+### Feedback obrigatório em rejeição – 400 Bad Request
+
+```json
+{
+  "feedback": [
+    "Feedback é obrigatório quando o currículo é rejeitado."
+  ]
+}
+```
+
+### Status inválido – 400 Bad Request
+
+```json
+{
+  "status": [
+    "Status inválido."
+  ]
+}
+```
+
+### Sem permissões (não CR) – 403 Forbidden
+
+```json
+{
+  "detail": "Não possui permissão para efetuar esta ação."
+}
+```
+
+### Header de autenticação em falta – 401 Unauthorized
+
+```json
+{
+  "detail": "Header X-User-ID em falta"
+}
+```
+
+---
+
+## Observações
+
+* Um currículo só pode ser validado **uma única vez**
+* Cada currículo possui no máximo **uma review**
+* A validação é uma operação irreversível
+* Notificações são enviadas automaticamente após aprovação ou rejeição

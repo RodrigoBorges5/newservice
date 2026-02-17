@@ -1,3 +1,4 @@
+import logging
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -10,7 +11,7 @@ from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from .middleware import IsCompany, IsCR, IsStudent, VagaPermission, IsAll, IsCROrIsCompany, IsStudentOrCR
 from .models import Curriculo, Estudante, Vaga, CVAccessLog, CV_STATUS_LABELS, Notification
-from .serializers import CurriculoSerializer, VagaSerializer, CVSignedUrlSerializer, CVAccessLogSerializer, NotificationSerializer, NotificationReadSerializer
+from .serializers import CurriculoSerializer, VagaSerializer, CVSignedUrlSerializer, CVAccessLogSerializer, NotificationSerializer, NotificationReadSerializer, CRReviewSerializer, CRReviewResponseSerializer
 from .filters import CurriculoFilterSet
 from service.services.storage_service import SupabaseStorageService
 from service.services.cv_service import CVService
@@ -19,6 +20,7 @@ from django.conf import settings
 from django.db import transaction
 from .filters import VagaFilterSet, NotificationFilterSet
 
+logger = logging.getLogger(__name__)
 
 
 def idex(request):
@@ -374,6 +376,64 @@ class CurriculoViewSet(viewsets.ModelViewSet):
         # Fallback se a paginação falhar
         serializer = CVAccessLogSerializer(access_logs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True,methods=["post"],url_path="review",permission_classes=[IsCR])
+    def review(self, request, pk=None):
+        """
+        Endpoint para aprovação/rejeição de currículos por CR.
+        POST /curriculo/{id}/review/
+        """
+        if request.role != 0:
+            return Response(
+                {"detail": "Apenas membros CR podem validar currículos."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            curriculo = Curriculo.objects.get(id=pk)
+        except Curriculo.DoesNotExist:
+            return Response(
+                {"detail": "Currículo não encontrado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = CRReviewSerializer(
+            data={
+                **request.data,
+                "curriculo_id": curriculo.id,
+            },
+            context={"request": request},
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        #try:
+        with transaction.atomic():
+            review = serializer.save()
+        """except Exception as exc:
+            logger.error(
+                "Erro ao validar currículo %s por CR %s: %s",
+                curriculo.id,
+                request.user_id,
+                str(exc),
+            )
+            return Response(
+                {"detail": "Erro ao validar currículo."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )"""
+
+        logger.info(
+            "Currículo %s validado por CR %s com status %s",
+            curriculo.id,
+            request.user_id,
+            curriculo.status,
+        )
+
+        response_serializer = CRReviewResponseSerializer(review)
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_200_OK
+        )
 
 class VagaViewSet(viewsets.ModelViewSet):
     """

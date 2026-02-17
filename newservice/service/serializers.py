@@ -1,3 +1,4 @@
+from urllib import request
 from rest_framework import serializers
 from .models import Curriculo,Cr, CrCurriculo, Vaga, Area, VagaArea, CVAccessLog, CV_STATUS_LABELS, Notification
 
@@ -269,10 +270,8 @@ class CRReviewSerializer(serializers.Serializer):
 
         curriculo = Curriculo.objects.get(id=validated_data["curriculo_id"])
 
-        try:
-            cr = Cr.objects.get(
-                utilizador_auth_user_supabase_field=request.user.utilizador
-            )
+        try:       
+            cr = Cr.objects.get(utilizador_auth_user_supabase_field=request.user_id)
         except Cr.DoesNotExist:
             raise serializers.ValidationError(
                 "Utilizador autenticado não é um CR válido."
@@ -284,7 +283,7 @@ class CRReviewSerializer(serializers.Serializer):
         if status == Curriculo.CV_STATUS_APPROVED:
             curriculo.approve()
         elif status == Curriculo.CV_STATUS_REJECTED:
-            curriculo.reject(feedback=feedback)
+            curriculo.reject()
 
         # Criação da review
         review = CrCurriculo.objects.create(
