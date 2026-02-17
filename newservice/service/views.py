@@ -407,10 +407,10 @@ class CurriculoViewSet(viewsets.ModelViewSet):
 
         serializer.is_valid(raise_exception=True)
 
-        #try:
-        with transaction.atomic():
-            review = serializer.save()
-        """except Exception as exc:
+        try:
+            with transaction.atomic():
+                review = serializer.save()
+        except Exception as exc:
             logger.error(
                 "Erro ao validar currículo %s por CR %s: %s",
                 curriculo.id,
@@ -420,7 +420,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
             return Response(
                 {"detail": "Erro ao validar currículo."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )"""
+            )
 
         logger.info(
             "Currículo %s validado por CR %s com status %s",
