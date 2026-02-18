@@ -111,7 +111,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
         if self.action == 'get_my_cv':
             # Estudante acede ao seu próprio CV
             permission_classes = [IsStudent]
-        elif self.action == 'access_history':
+        elif self.action in ['access_history', 'review']:
             permission_classes = [IsCR]
         elif self.action in ['view_cv']:
             permission_classes = [IsAll]
@@ -395,6 +395,12 @@ class CurriculoViewSet(viewsets.ModelViewSet):
             return Response(
                 {"detail": "Currículo não encontrado."},
                 status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not curriculo.is_pending():
+            return Response(
+                {"detail": "Este currículo já foi validado."},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
         serializer = CRReviewSerializer(

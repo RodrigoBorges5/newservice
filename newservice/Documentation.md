@@ -56,10 +56,11 @@ X-User-ID = [ID]
 ### Request:
 
 **Content-Type:** multipart/form-data
-**Body:**  
-| Campo | Tipo |
-|-------|-----------|
-| cv | File (PDF)|
+**Body:**
+
+| Campo | Tipo       |
+| ----- | ---------- |
+| cv    | File (PDF) |
 
 Regras de validação do ficheiro
 
@@ -72,7 +73,7 @@ Regras de validação do ficheiro
 ### Respostas:
 
 **Upload do currículo efetuado com sucesso:**
-201 Created  
+201 Created
 {
 "id": 12,
 "file": "estudante_45/cv.pdf",
@@ -214,21 +215,22 @@ Garantia: o ficheiro é removido do Storage (rollback).
 **Descrição:** Lista as notificações do utilizador autenticado (e.g., alterações de estado do CV, feedback).
 
 **Permissões:**
-| Role | Acesso |
-|------|--------|
-| Estudante (2) | Apenas as suas notificações |
-| CR (0) | Todas as notificações; pode filtrar por estudante |
-| Empresa (1) | 403 Forbidden |
+
+| Role          | Acesso                                              |
+| ------------- | --------------------------------------------------- |
+| Estudante (2) | Apenas as suas notificações                       |
+| CR (0)        | Todas as notificações; pode filtrar por estudante |
+| Empresa (1)   | 403 Forbidden                                       |
 
 **Filtros (query params):**
 
-| Parâmetro   | Tipo   | Descrição                                              |
-| ----------- | ------ | ------------------------------------------------------ |
-| `type`      | string | Tipo de notificação: `cv_status_change`, `cv_feedback` |
-| `status`    | string | Estado de envio: `sent`, `failed`                      |
-| `date_from` | date   | Data inicial (YYYY-MM-DD)                              |
-| `date_to`   | date   | Data final (YYYY-MM-DD)                                |
-| `student`   | UUID   | UUID do estudante (apenas CR)                          |
+| Parâmetro    | Tipo   | Descrição                                                 |
+| ------------- | ------ | ----------------------------------------------------------- |
+| `type`      | string | Tipo de notificação:`cv_status_change`, `cv_feedback` |
+| `status`    | string | Estado de envio:`sent`, `failed`                        |
+| `date_from` | date   | Data inicial (YYYY-MM-DD)                                   |
+| `date_to`   | date   | Data final (YYYY-MM-DD)                                     |
+| `student`   | UUID   | UUID do estudante (apenas CR)                               |
 
 **Ordenação:**
 
@@ -274,7 +276,7 @@ X-User-ID: <uuid-do-estudante>
 
 ---
 
-### PATCH /curriculo/notifications/{id}/
+### PATCH /curriculo/notifications//
 
 **Descrição:** Marca uma notificação como lida (ou não lida).
 
@@ -302,38 +304,37 @@ X-User-ID: <uuid-do-estudante>
 ```
 
 **Erros:**
-| Código | Descrição |
-|--------|-----------|
-| 401 | Header `X-User-ID` em falta |
-| 403 | Sem permissão (Empresa, ou estudante a alterar notificação de outrem) |
-| 404 | Notificação não encontrada |
-| 405 | Método não permitido (POST, PUT, DELETE) |
+
+| Código | Descrição                                                              |
+| ------- | ------------------------------------------------------------------------ |
+| 401     | Header `X-User-ID` em falta                                            |
+| 403     | Sem permissão (Empresa, ou estudante a alterar notificação de outrem) |
+| 404     | Notificação não encontrada                                            |
+| 405     | Método não permitido (POST, PUT, DELETE)                               |
 
 ---
 
 ### Modelo Notification
 
-| Campo               | Tipo     | Descrição                           |
-| ------------------- | -------- | ----------------------------------- |
-| `id`                | int      | Chave primária (auto-incremento)    |
-| `recipient_user_id` | UUID     | UUID do utilizador destinatário     |
-| `recipient_email`   | string   | Email no momento do envio           |
+| Campo                 | Tipo     | Descrição                             |
+| --------------------- | -------- | --------------------------------------- |
+| `id`                | int      | Chave primária (auto-incremento)       |
+| `recipient_user_id` | UUID     | UUID do utilizador destinatário        |
+| `recipient_email`   | string   | Email no momento do envio               |
 | `type`              | string   | `cv_status_change` ou `cv_feedback` |
-| `subject`           | string   | Assunto do email enviado            |
+| `subject`           | string   | Assunto do email enviado                |
 | `status`            | string   | `sent` ou `failed`                  |
-| `error_message`     | string   | Mensagem de erro (vazio se sucesso) |
-| `read`              | bool     | Se foi lida pelo utilizador         |
-| `curriculo`         | int/null | FK para o currículo associado       |
-| `created_at`        | datetime | Data de criação                     |
-| `updated_at`        | datetime | Data da última atualização          |
+| `error_message`     | string   | Mensagem de erro (vazio se sucesso)     |
+| `read`              | bool     | Se foi lida pelo utilizador             |
+| `curriculo`         | int/null | FK para o currículo associado          |
+| `created_at`        | datetime | Data de criação                       |
+| `updated_at`        | datetime | Data da última atualização           |
 
 As notificações são criadas automaticamente pela task `send_cv_status_notification` sempre que o estado de um CV é alterado (aprovado ou rejeitado).
 
-# API Documentation – CR Review de Currículos
-
 ## Endpoints de Review de Currículo (CR)
 
-### POST /curriculo/{id}/review/
+### POST /curriculo//review/
 
 **Descrição:**
 Endpoint utilizado por utilizadores com role **CR (0)** para validar um currículo pendente, aprovando ou rejeitando o CV e opcionalmente adicionando feedback.
@@ -346,13 +347,7 @@ Endpoint utilizado por utilizadores com role **CR (0)** para validar um currícu
 X-User-ID: <uuid-do-cr>
 ```
 
----
-
-## Request
-
-**Content-Type:** application/json
-
-### Body
+Body
 
 ```json
 {
@@ -362,17 +357,11 @@ X-User-ID: <uuid-do-cr>
 }
 ```
 
-### Campos
-
-| Campo        | Tipo    | Obrigatório | Descrição                                   |
-| ------------ | ------- | ----------- | ------------------------------------------- |
-| curriculo_id | integer | Sim         | ID do currículo a validar                   |
-| status       | integer | Sim         | Novo estado do CV (1=aprovado, 2=rejeitado) |
-| feedback     | string  | Condicional | Obrigatório se status=2 (rejeitado)         |
-
----
-
-## Regras de Validação
+| Campo        | Tipo    | Obrigatório | Descrição                                 |
+| ------------ | ------- | ------------ | ------------------------------------------- |
+| curriculo_id | integer | Sim          | ID do currículo a validar                  |
+| status       | integer | Sim          | Novo estado do CV (1=aprovado, 2=rejeitado) |
+| feedback     | string  | Condicional  | Obrigatório se status=2 (rejeitado)        |
 
 * Apenas currículos com estado **PENDING (0)** podem ser validados
 * Não é permitido voltar um currículo ao estado PENDING
@@ -383,10 +372,6 @@ X-User-ID: <uuid-do-cr>
 * Se `status = 2`, o campo `feedback` é obrigatório
 * O currículo deve existir
 * Apenas utilizadores CR podem executar esta ação
-
----
-
-## Comportamento Interno
 
 Consoante o valor de `status`, o sistema executa:
 
@@ -400,11 +385,7 @@ Durante o processo:
 * É criado um registo de review (`CrCurriculo`)
 * São disparadas notificações automáticas para o estudante
 
----
-
-## Response
-
-### Sucesso – 200 OK
+Sucesso – 200 OK
 
 ```json
 {
@@ -416,21 +397,15 @@ Durante o processo:
 }
 ```
 
-### Campos de Resposta
-
-| Campo        | Tipo        | Descrição                             |
-| ------------ | ----------- | ------------------------------------- |
+| Campo        | Tipo        | Descrição                            |
+| ------------ | ----------- | -------------------------------------- |
 | curriculo_id | integer     | ID do currículo validado              |
 | status       | string      | Estado legível (Aprovado / Rejeitado) |
-| feedback     | string/null | Feedback do CR                        |
-| review_date  | date        | Data da validação                     |
-| validated_by | string      | Nome do CR que validou                |
+| feedback     | string/null | Feedback do CR                         |
+| review_date  | date        | Data da validação                    |
+| validated_by | string      | Nome do CR que validou                 |
 
----
-
-## Erros Comuns
-
-### Currículo não encontrado – 404 Not Found
+Currículo não encontrado – 404 Not Found
 
 ```json
 {
@@ -438,7 +413,7 @@ Durante o processo:
 }
 ```
 
-### Currículo já validado – 400 Bad Request
+Currículo já validado – 400 Bad Request
 
 ```json
 {
@@ -446,7 +421,7 @@ Durante o processo:
 }
 ```
 
-### Feedback obrigatório em rejeição – 400 Bad Request
+Feedback obrigatório em rejeição – 400 Bad Request
 
 ```json
 {
@@ -456,7 +431,7 @@ Durante o processo:
 }
 ```
 
-### Status inválido – 400 Bad Request
+Status inválido – 400 Bad Request
 
 ```json
 {
@@ -466,7 +441,7 @@ Durante o processo:
 }
 ```
 
-### Sem permissões (não CR) – 403 Forbidden
+Sem permissões (não CR) – 403 Forbidden
 
 ```json
 {
@@ -474,7 +449,7 @@ Durante o processo:
 }
 ```
 
-### Header de autenticação em falta – 401 Unauthorized
+Header de autenticação em falta – 401 Unauthorized
 
 ```json
 {
@@ -482,9 +457,7 @@ Durante o processo:
 }
 ```
 
----
-
-## Observações
+### Observações
 
 * Um currículo só pode ser validado **uma única vez**
 * Cada currículo possui no máximo **uma review**
