@@ -5,6 +5,11 @@ from .models import Curriculo,Cr, CrCurriculo, Vaga, Area, VagaArea, CVAccessLog
 from django.utils import timezone
 
 
+CURRICULO_STATUS_PENDING = getattr(Curriculo, "CV_STATUS_PENDING", getattr(Curriculo, "STATUS_PENDENTE", 0))
+CURRICULO_STATUS_APPROVED = getattr(Curriculo, "CV_STATUS_APPROVED", getattr(Curriculo, "STATUS_APROVADO", 1))
+CURRICULO_STATUS_REJECTED = getattr(Curriculo, "CV_STATUS_REJECTED", getattr(Curriculo, "STATUS_REJEITADO", 2))
+
+
 class CVAccessLogSerializer(serializers.ModelSerializer):
     """Serializer para CVAccessLog - histórico de acessos."""
     accessed_by_user_id = serializers.SerializerMethodField()
@@ -220,7 +225,7 @@ class VagaSerializer(serializers.ModelSerializer):
 
 class CRReviewSerializer(serializers.Serializer):
     curriculo_id = serializers.IntegerField(read_only = False)
-    status = serializers.ChoiceField(choices=((Curriculo.CV_STATUS_APPROVED, "Aprovado"),(Curriculo.CV_STATUS_REJECTED, "Rejeitado")))
+    status = serializers.ChoiceField(choices=((CURRICULO_STATUS_APPROVED, "Aprovado"),(CURRICULO_STATUS_REJECTED, "Rejeitado")))
     feedback = serializers.CharField(allow_blank=True,allow_null=True,required=False)
     review_date = serializers.DateField(read_only=True)
 
@@ -242,21 +247,21 @@ class CRReviewSerializer(serializers.Serializer):
         feedback = attrs.get("feedback")
 
         # Se rejeitado, é obrigatório dar feedback
-        if status == Curriculo.CV_STATUS_REJECTED and not feedback:
+        if status == CURRICULO_STATUS_REJECTED and not feedback:
             raise serializers.ValidationError({
                 "feedback": "Feedback é obrigatório quando o currículo é rejeitado."
             })
 
         # Não faz sentido voltar para status pendente (0)
-        if status == Curriculo.CV_STATUS_PENDING:
+        if status == CURRICULO_STATUS_PENDING:
             raise serializers.ValidationError({
                 "status": "Status inválido.Não é permitido voltar o currículo para o estado pendente."
             })
 
         # Apenas aprovado ou rejeitado são permitidos (1 ou 2)
         if status not in (
-            Curriculo.CV_STATUS_APPROVED,
-            Curriculo.CV_STATUS_REJECTED,
+            CURRICULO_STATUS_APPROVED,
+            CURRICULO_STATUS_REJECTED,
         ):
             raise serializers.ValidationError({
                 "status": "Status inválido. Valores permitidos: aprovado ou rejeitado."
@@ -280,9 +285,9 @@ class CRReviewSerializer(serializers.Serializer):
         status = validated_data["status"]
         feedback = validated_data.get("feedback")
 
-        if status == Curriculo.CV_STATUS_APPROVED:
+        if status == CURRICULO_STATUS_APPROVED:
             curriculo.approve()
-        elif status == Curriculo.CV_STATUS_REJECTED:
+        elif status == CURRICULO_STATUS_REJECTED:
             curriculo.reject()
 
         # Criação da review
