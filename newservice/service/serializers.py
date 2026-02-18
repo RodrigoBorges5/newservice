@@ -5,6 +5,11 @@ from .models import Curriculo,Cr, CrCurriculo, Vaga, Area, VagaArea, CVAccessLog
 from django.utils import timezone
 
 
+CURRICULO_STATUS_PENDING = getattr(Curriculo, "CV_STATUS_PENDING", getattr(Curriculo, "STATUS_PENDENTE", 0))
+CURRICULO_STATUS_APPROVED = getattr(Curriculo, "CV_STATUS_APPROVED", getattr(Curriculo, "STATUS_APROVADO", 1))
+CURRICULO_STATUS_REJECTED = getattr(Curriculo, "CV_STATUS_REJECTED", getattr(Curriculo, "STATUS_REJEITADO", 2))
+
+
 class CVAccessLogSerializer(serializers.ModelSerializer):
     """Serializer para CVAccessLog - histórico de acessos."""
     accessed_by_user_id = serializers.SerializerMethodField()
@@ -245,7 +250,7 @@ class CRReviewSerializer(serializers.Serializer):
         feedback = attrs.get("feedback")
 
         # Se rejeitado, é obrigatório dar feedback
-        if status == Curriculo.CV_STATUS_REJECTED and not feedback:
+        if status == CURRICULO_STATUS_REJECTED and not feedback:
             raise serializers.ValidationError({
                 "feedback": "Feedback é obrigatório quando o currículo é rejeitado."
             })
@@ -267,9 +272,9 @@ class CRReviewSerializer(serializers.Serializer):
         status = validated_data["status"]
         feedback = validated_data.get("feedback")
 
-        if status == Curriculo.CV_STATUS_APPROVED:
+        if status == CURRICULO_STATUS_APPROVED:
             curriculo.approve()
-        elif status == Curriculo.CV_STATUS_REJECTED:
+        elif status == CURRICULO_STATUS_REJECTED:
             curriculo.reject()
 
         # Criação da review
