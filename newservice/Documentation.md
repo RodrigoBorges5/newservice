@@ -334,7 +334,7 @@ As notificações são criadas automaticamente pela task `send_cv_status_notific
 
 ## Endpoints de Review de Currículo (CR)
 
-### POST /curriculo//review/
+### POST /curriculo/{id}/review/
 
 **Descrição:**
 Endpoint utilizado por utilizadores com role **CR (0)** para validar um currículo pendente, aprovando ou rejeitando o CV e opcionalmente adicionando feedback.
@@ -351,7 +351,6 @@ Body
 
 ```json
 {
-  "curriculo_id": 42,
   "status": 1,
   "feedback": "Perfil técnico sólido"
 }
@@ -359,14 +358,12 @@ Body
 
 | Campo        | Tipo    | Obrigatório | Descrição                                 |
 | ------------ | ------- | ------------ | ------------------------------------------- |
-| curriculo_id | integer | Sim          | ID do currículo a validar                  |
 | status       | integer | Sim          | Novo estado do CV (1=aprovado, 2=rejeitado) |
 | feedback     | string  | Condicional  | Obrigatório se status=2 (rejeitado)        |
 
 * Apenas currículos com estado **PENDING (0)** podem ser validados
 * Não é permitido voltar um currículo ao estado PENDING
 * `status` só aceita os valores:
-
   * `1` – aprovado
   * `2` – rejeitado
 * Se `status = 2`, o campo `feedback` é obrigatório
@@ -383,14 +380,13 @@ Durante o processo:
 * O currículo muda de estado
 * A data de validação é automaticamente registada
 * É criado um registo de review (`CrCurriculo`)
-* São disparadas notificações automáticas para o estudante
 
 Sucesso – 200 OK
 
 ```json
 {
   "curriculo_id": 42,
-  "status": "Aprovado",
+  "status": "Aprovado pelo CR",
   "feedback": "Perfil técnico sólido",
   "review_date": "2026-02-16",
   "validated_by": "João Silva"
@@ -436,7 +432,7 @@ Status inválido – 400 Bad Request
 ```json
 {
   "status": [
-    "Status inválido."
+    "Estado inválido. Valores permitidos: 1 (aprovado) ou 2 (rejeitado)."
   ]
 }
 ```
