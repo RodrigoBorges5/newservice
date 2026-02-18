@@ -225,7 +225,10 @@ class VagaSerializer(serializers.ModelSerializer):
 
 class CRReviewSerializer(serializers.Serializer):
     curriculo_id = serializers.IntegerField(read_only = False)
-    status = serializers.ChoiceField(choices=((CURRICULO_STATUS_APPROVED, "Aprovado"),(CURRICULO_STATUS_REJECTED, "Rejeitado")))
+    status = serializers.ChoiceField(choices=((Curriculo.CV_STATUS_APPROVED, "Aprovado"),(Curriculo.CV_STATUS_REJECTED, "Rejeitado")),error_messages={
+            "invalid_choice": "Estado inválido. Valores permitidos: 1 (aprovado) ou 2 (rejeitado).",
+            "required": "O campo status é obrigatório."
+        })
     feedback = serializers.CharField(allow_blank=True,allow_null=True,required=False)
     review_date = serializers.DateField(read_only=True)
 
@@ -251,22 +254,6 @@ class CRReviewSerializer(serializers.Serializer):
             raise serializers.ValidationError({
                 "feedback": "Feedback é obrigatório quando o currículo é rejeitado."
             })
-
-        # Não faz sentido voltar para status pendente (0)
-        if status == CURRICULO_STATUS_PENDING:
-            raise serializers.ValidationError({
-                "status": "Status inválido.Não é permitido voltar o currículo para o estado pendente."
-            })
-
-        # Apenas aprovado ou rejeitado são permitidos (1 ou 2)
-        if status not in (
-            CURRICULO_STATUS_APPROVED,
-            CURRICULO_STATUS_REJECTED,
-        ):
-            raise serializers.ValidationError({
-                "status": "Status inválido. Valores permitidos: aprovado ou rejeitado."
-            })
-
         return attrs
 
 
