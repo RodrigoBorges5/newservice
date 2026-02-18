@@ -6,7 +6,7 @@
 #   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
 # Feel free to rename the models, but don't rename db_table values or field names.
 import uuid
-
+from django.utils import timezone
 from django.db import models
 
 # Constantes para status de currículo
@@ -90,45 +90,51 @@ class AuthUserUserPermissions(models.Model):
         db_table = 'auth_user_user_permissions'
         unique_together = (('user', 'permission'),)
 
-class Cr(models.Model):
-    tipo = models.SmallIntegerField(blank=True, null=True)
-    utilizador_auth_user_supabase_field = models.OneToOneField('Utilizador', models.DO_NOTHING, db_column='utilizador_auth_user_supabase__id', primary_key=True)  # Field renamed because it ended with '_'.
-
-    class Meta:
-        managed = False
-        db_table = 'cr'
-
-class CrCurriculo(models.Model):
-    cr_utilizador_auth_user_supabase_field = models.ForeignKey(Cr, models.DO_NOTHING, db_column='cr_utilizador_auth_user_supabase__id')  # Field renamed because it ended with '_'.
-    curriculo = models.OneToOneField('Curriculo', models.DO_NOTHING, primary_key=True)
-
-    class Meta:
-        managed = False
-        db_table = 'cr_curriculo'
-
 class Curriculo(models.Model):
-    """
-    Modelo do currículo do estudante.
+    #Constantes para status de currículo
+    CV_STATUS_PENDING = 0    # Pendente de validação
+    CV_STATUS_APPROVED = 1   # Aprovado pelo CR
+    CV_STATUS_REJECTED = 2   # Rejeitado pelo CR
 
-    Statuses:
-        0 = Pendente (submissão inicial)
-        1 = Aprovado
-        2 = Rejeitado
-    """
-
-    STATUS_PENDENTE = 0
-    STATUS_APROVADO = 1
-    STATUS_REJEITADO = 2
+    #Constantes para status de currículo como tuplas
+    CV_STATUS_CHOICES = (
+        (CV_STATUS_PENDING, "Pendente de validação"),
+        (CV_STATUS_APPROVED, "Aprovado pelo CR"),
+        (CV_STATUS_REJECTED, "Rejeitado pelo CR"),
+    )
 
     file = models.CharField(blank=True, null=True)
-    status = models.IntegerField(blank=True, null=True)
+    status = models.IntegerField(choices=CV_STATUS_CHOICES, default=CV_STATUS_PENDING)
+    #usar curriculo.get_status_display() para obter a descrição do status
     descricao = models.TextField(blank=True, null=True)
     validated_date = models.DateField(blank=True, null=True)
     estudante_utilizador_auth_user_supabase_field = models.OneToOneField('Estudante', models.DO_NOTHING, db_column='estudante_utilizador_auth_user_supabase__id')  # Field renamed because it ended with '_'.
 
+    def is_pending(self):
+        return self.status == self.CV_STATUS_PENDING
+
+    def is_approved(self):
+        return self.status == self.CV_STATUS_APPROVED
+
+    def is_rejected(self):
+        return self.status == self.CV_STATUS_REJECTED
+    
     class Meta:
         managed = False
         db_table = 'curriculo'
+
+    def get_latest_review(self):
+        return self.reviews.first()
+    
+    def approve(self):
+        self.status = self.CV_STATUS_APPROVED
+        self.validated_date = timezone.now().date()
+        self.save(update_fields=["status", "validated_date"])
+
+    def reject(self):
+        self.status = self.CV_STATUS_REJECTED
+        self.validated_date = timezone.now().date()
+        self.save(update_fields=["status", "validated_date"])
 
 class CVAccessLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
@@ -140,6 +146,54 @@ class CVAccessLog(models.Model):
     class Meta:
         managed = False
         db_table = 'cv_access_log'
+
+class Cr(models.Model):
+    tipo = models.SmallIntegerField(blank=True, null=True)
+    utilizador_auth_user_supabase_field = models.OneToOneField('Utilizador', models.DO_NOTHING, db_column='utilizador_auth_user_supabase__id', primary_key=True)  # Field renamed because it ended with '_'.
+
+    class Meta:
+        managed = False
+        db_table = 'cr'
+
+class CrCurriculo(models.Model):
+    cr_utilizador_auth_user_supabase_field = models.ForeignKey(
+        'Cr',
+        models.DO_NOTHING,
+        db_column='cr_utilizador_auth_user_supabase__id',
+        related_name='curriculo_reviews'
+    )
+
+    curriculo = models.OneToOneField(
+        Curriculo,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        db_column="curriculo_id",
+    )
+
+    # auditoria
+    feedback = models.TextField(
+        null=True,
+        blank=True
+    )
+
+    review_date = models.DateField(
+        null=True,
+        blank=True
+    )
+
+    def create_review(self, feedback=None):
+        """
+        Cria e salva um registo de validação (review) de um currículo por um CR.
+        """
+        self.feedback = feedback
+        self.review_date = timezone.now().date()
+        self.save()
+        return self
+    
+    class Meta:
+        managed = False
+        db_table = 'cr_curriculo'
+        ordering = ['-review_date']
 
     
 

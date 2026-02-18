@@ -160,7 +160,7 @@ REST_FRAMEWORK = {
 # Supabase Configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6dGFzamhyaWx5cmxueW5rdG5zIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTc0NDAwNSwiZXhwIjoyMDgxMzIwMDA1fQ.l5DhM6lVRuxqsRQTQdcwoYdON0uyIqdcktHHeTRkIkQ"
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 #file configuration
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 ALLOWED_MIME = "application/pdf"
