@@ -18,8 +18,10 @@ from service.services.cv_service import CVService
 from service.services.exceptions import StorageUploadException, StorageSignedUrlException
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField, Q
+from django.db.models import Count, Avg, F, ExpressionWrapper, Q, FloatField
 from .filters import VagaFilterSet, NotificationFilterSet
+from django.utils import timezone
+from django.db.models.functions import Cast, Extract
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +192,8 @@ class CurriculoViewSet(viewsets.ModelViewSet):
                         defaults={
                             "file": file_path,
                             "status": 0,  # Pendente de validação
+                            "creation_date": timezone.now().date(),
+                            "validated_date": None
                         },
                     )
             except Exception:
@@ -461,24 +465,25 @@ class CurriculoViewSet(viewsets.ModelViewSet):
         validated_percentage = (validated_total / total * 100) if total > 0 else 0
         approval_rate = (approved / validated_total * 100) if validated_total > 0 else 0
         rejection_rate = (rejected / validated_total * 100) if validated_total > 0 else 0
-        # TODO:Tempo médio de validação (em dias)
-        """avg_validation = Curriculo.objects.filter(
+        avg_validation_seconds = Curriculo.objects.filter(
             status__in=[1, 2],
-            validated_date__isnull=False
+            validated_date__isnull=False,
+            creation_date__isnull=False,
         ).annotate(
-            validation_time=ExpressionWrapper(
-                F("validated_date") - F("created_at"),
-                output_field=DurationField()
+            validation_seconds=ExpressionWrapper(
+                Extract(F("validated_date") - F("creation_date"), "epoch"),
+                output_field=FloatField()
             )
         ).aggregate(
-            avg_time=Avg("validation_time")
-        )["avg_time"]
+            avg_seconds=Avg("validation_seconds")
+        )["avg_seconds"]
 
         avg_validation_days = (
-            avg_validation.total_seconds() / 86400
-            if avg_validation else None
+            avg_validation_seconds / 86400
+            if avg_validation_seconds is not None
+            else None
         )
-        """
+        
         return Response({
             "total": total,
             "pending": pending,
@@ -487,7 +492,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
             "validated_percentage": round(validated_percentage, 2),
             "approval_rate": round(approval_rate, 2),
             "rejection_rate": round(rejection_rate, 2),
-            #"avg_validation_days": round(avg_validation_days, 2) if avg_validation_days is not None else None
+            "avg_validation_days": round(avg_validation_days, 2) if avg_validation_days is not None else None
         }, status=status.HTTP_200_OK)
 
 class VagaViewSet(viewsets.ModelViewSet):
