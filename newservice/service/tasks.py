@@ -35,10 +35,8 @@ STATUS_LABELS = {
 
 def _get_student_email(user_uuid: str) -> str:
     """
-    Obtém o email do estudante.
-    
-    Tenta obter via Supabase Auth API. Em desenvolvimento/teste,
-    se falhar, usa um email de fallback baseado no UUID.
+    Obtém o email do estudante via Supabase Auth.
+    Função wrapper que usa a função centralizada do supabase_client.
 
     Args:
         user_uuid: UUID do utilizador no Supabase Auth.
@@ -49,41 +47,8 @@ def _get_student_email(user_uuid: str) -> str:
     Raises:
         ValueError: Se o email não for encontrado e DEBUG=False.
     """
-    # Tentar Supabase Auth API
-    try:
-        from newservice.supabase_client import get_supabase_client
-        
-        client = get_supabase_client()
-        response = client.auth.admin.get_user_by_id(user_uuid)
-
-        if response and response.user and response.user.email:
-            logger.debug(
-                "Email obtido via Supabase Auth API: %s",
-                response.user.email
-            )
-            return response.user.email
-            
-    except Exception as e:
-        logger.warning(
-            "Falha ao obter email via Supabase Auth API: %s", 
-            e
-        )
-    
-    # Fallback para desenvolvimento/teste
-    if settings.DEBUG:
-        fallback_email = f"estudante+{user_uuid[:8]}@teste.local"
-        logger.info(
-            "DEBUG MODE: A usar email de fallback: %s",
-            fallback_email
-        )
-        return fallback_email
-    
-    # Em produção, falhar explicitamente
-    raise ValueError(
-        f"Email não encontrado para o utilizador {user_uuid}. "
-        "Certifique-se que o utilizador existe no Supabase Auth e "
-        "que SUPABASE_KEY está configurado com a service_role key."
-    )
+    from service.supabase_client import get_user_email
+    return get_user_email(user_uuid)
 
 
 def _render_email(status: int, context: dict) -> tuple[str, str]:
@@ -109,7 +74,6 @@ def _render_email(status: int, context: dict) -> tuple[str, str]:
     return html_content, plain_text
 
 
-@task()
 def send_cv_status_notification(
     curriculo_id: int,
     status: int,

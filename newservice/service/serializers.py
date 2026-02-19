@@ -258,6 +258,10 @@ class CRReviewSerializer(serializers.Serializer):
 
 
     def create(self, validated_data):
+        from .tasks import send_cv_status_notification
+        import logging
+        
+        logger = logging.getLogger(__name__)
         request = self.context["request"]
 
         curriculo = Curriculo.objects.get(id=validated_data["curriculo_id"])
@@ -284,6 +288,28 @@ class CRReviewSerializer(serializers.Serializer):
             feedback=feedback,
             review_date=curriculo.validated_date,
         )
+        
+        # Enviar notificação assíncrona ao estudante
+        try:
+            send_cv_status_notification(
+                curriculo_id=curriculo.id,
+                status=status,
+                feedback=feedback or "",
+            )
+            logger.info(
+                "Notificação de CV enviada para estudante %s (curriculo_id=%s, status=%s)",
+                curriculo.estudante_utilizador_auth_user_supabase_field.utilizador_auth_user_supabase_field.auth_user_supabase_id,
+                curriculo.id,
+                status,
+            )
+        except Exception as e:
+            logger.error(
+                "Erro ao enviar notificação de CV para curriculo_id=%s: %s",
+                curriculo.id,
+                str(e),
+            )
+            # Log do erro mas não falha a validação do CV
+        
         return review
 
 class CRReviewResponseSerializer(serializers.Serializer):

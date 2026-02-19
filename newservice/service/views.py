@@ -510,6 +510,7 @@ class NotificationPagination(PageNumberPagination):
     max_page_size = 100
 
 
+
 class NotificationViewSet(viewsets.ModelViewSet):
     """
     ViewSet para consulta e gestão de notificações do utilizador.

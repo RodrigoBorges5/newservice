@@ -334,7 +334,7 @@ As notificações são criadas automaticamente pela task `send_cv_status_notific
 
 ## Endpoints de Review de Currículo (CR)
 
-### POST /curriculo/{id}/review/
+### POST /curriculo//review/
 
 **Descrição:**
 Endpoint utilizado por utilizadores com role **CR (0)** para validar um currículo pendente, aprovando ou rejeitando o CV e opcionalmente adicionando feedback.
@@ -356,10 +356,10 @@ Body
 }
 ```
 
-| Campo        | Tipo    | Obrigatório | Descrição                                 |
-| ------------ | ------- | ------------ | ------------------------------------------- |
-| status       | integer | Sim          | Novo estado do CV (1=aprovado, 2=rejeitado) |
-| feedback     | string  | Condicional  | Obrigatório se status=2 (rejeitado)        |
+| Campo    | Tipo    | Obrigatório | Descrição                                 |
+| -------- | ------- | ------------ | ------------------------------------------- |
+| status   | integer | Sim          | Novo estado do CV (1=aprovado, 2=rejeitado) |
+| feedback | string  | Condicional  | Obrigatório se status=2 (rejeitado)        |
 
 * Apenas currículos com estado **PENDING (0)** podem ser validados
 * Não é permitido voltar um currículo ao estado PENDING
