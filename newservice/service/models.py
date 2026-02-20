@@ -107,6 +107,7 @@ class Curriculo(models.Model):
     status = models.IntegerField(choices=CV_STATUS_CHOICES, default=CV_STATUS_PENDING)
     #usar curriculo.get_status_display() para obter a descrição do status
     descricao = models.TextField(blank=True, null=True)
+    creation_date = models.DateField(blank=True, null=True)
     validated_date = models.DateField(blank=True, null=True)
     estudante_utilizador_auth_user_supabase_field = models.OneToOneField('Estudante', models.DO_NOTHING, db_column='estudante_utilizador_auth_user_supabase__id')  # Field renamed because it ended with '_'.
 
