@@ -259,12 +259,14 @@ class CRReviewSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         from .tasks import send_cv_status_notification
+        from service.services.storage_service import SupabaseStorageService
         import logging
         
         logger = logging.getLogger(__name__)
         request = self.context["request"]
 
         curriculo = Curriculo.objects.get(id=validated_data["curriculo_id"])
+        estudante = curriculo.estudante_utilizador_auth_user_supabase_field
 
         try:       
             cr = Cr.objects.get(utilizador_auth_user_supabase_field=request.user_id)
@@ -273,15 +275,118 @@ class CRReviewSerializer(serializers.Serializer):
                 "Utilizador autenticado não é um CR válido."
             )
 
-        status = validated_data["status"]
+        new_status = validated_data["status"]
         feedback = validated_data.get("feedback")
+        cv_anterior_eliminado = None
 
-        if status == CURRICULO_STATUS_APPROVED:
+        if new_status == CURRICULO_STATUS_APPROVED:
+            # Ao aprovar novo CV, eliminar CV anterior aprovado completamente
+            cv_anterior = Curriculo.objects.filter(
+                estudante_utilizador_auth_user_supabase_field=estudante,
+                status=CURRICULO_STATUS_APPROVED
+            ).exclude(id=curriculo.id).first()
+            
+            if cv_anterior:
+                cv_anterior_id = cv_anterior.id
+                cv_anterior_file = cv_anterior.file
+                
+                # Eliminar CV anterior da base de dados
+                cv_anterior.delete()
+                cv_anterior_eliminado = cv_anterior_id
+                
+                # Eliminar ficheiro do storage
+                if cv_anterior_file:
+                    try:
+                        storage_service = SupabaseStorageService()
+                        storage_service.delete_file(bucket_name="cvs", file_path=cv_anterior_file)
+                    except Exception as e:
+                        logger.warning(
+                            "Erro ao eliminar ficheiro do CV anterior (curriculo_id=%s): %s",
+                            cv_anterior_id, str(e)
+                        )
+                
+                logger.info(
+                    "CV anterior eliminado automaticamente (curriculo_id=%s) ao aprovar novo CV (curriculo_id=%s) para estudante %s",
+                    cv_anterior_id,
+                    curriculo.id,
+                    estudante.utilizador_auth_user_supabase_field.auth_user_supabase_id,
+                )
+            
             curriculo.approve()
-        elif status == CURRICULO_STATUS_REJECTED:
-            curriculo.reject()
+            logger.info(
+                "CV aprovado (curriculo_id=%s) por CR %s para estudante %s",
+                curriculo.id,
+                request.user_id,
+                estudante.utilizador_auth_user_supabase_field.auth_user_supabase_id,
+            )
+        elif new_status == CURRICULO_STATUS_REJECTED:
+            # CV pendente rejeitado → eliminar apenas este CV
+            # O CV aprovado existente (se houver) mantém-se ativo
+            curriculo_id = curriculo.id
+            curriculo_file = curriculo.file
+            estudante_id = estudante.utilizador_auth_user_supabase_field.auth_user_supabase_id
+            
+            # Verificar se existe CV aprovado (mantém-se ativo)
+            cv_aprovado = Curriculo.objects.filter(
+                estudante_utilizador_auth_user_supabase_field=estudante,
+                status=CURRICULO_STATUS_APPROVED
+            ).exclude(id=curriculo.id).first()
+            
+            # Eliminar ficheiro do storage
+            if curriculo_file:
+                try:
+                    storage_service = SupabaseStorageService()
+                    storage_service.delete_file(bucket_name="cvs", file_path=curriculo_file)
+                except Exception as e:
+                    logger.warning(
+                        "Erro ao eliminar ficheiro do CV rejeitado (curriculo_id=%s): %s",
+                        curriculo_id, str(e)
+                    )
+            
+            # Eliminar CV pendente da base de dados
+            curriculo.delete()
+            
+            logger.info(
+                "CV rejeitado e eliminado (curriculo_id=%s) por CR %s para estudante %s (cv_aprovado_ativo=%s)",
+                curriculo_id,
+                request.user_id,
+                estudante_id,
+                cv_aprovado.id if cv_aprovado else None,
+            )
+            
+            # Enviar notificação antes de retornar (CV já foi eliminado)
+            try:
+                send_cv_status_notification(
+                    curriculo_id=curriculo_id,
+                    status=new_status,
+                    feedback=feedback or "",
+                )
+                logger.info(
+                    "Notificação de CV rejeitado enviada para estudante %s (curriculo_id=%s)",
+                    estudante_id,
+                    curriculo_id,
+                )
+            except Exception as e:
+                logger.error(
+                    "Erro ao enviar notificação de CV rejeitado para curriculo_id=%s: %s",
+                    curriculo_id,
+                    str(e),
+                )
+            
+            # Retornar resposta
+            message = "CV rejeitado e eliminado. O estudante pode submeter um novo CV."
+            if cv_aprovado:
+                message = "CV pendente rejeitado e eliminado. O CV aprovado anterior mantém-se ativo."
+            
+            return {
+                "curriculo_id": curriculo_id,
+                "status": "rejeitado",
+                "feedback": feedback,
+                "message": message,
+                "cv_aprovado_ativo": cv_aprovado.id if cv_aprovado else None,
+            }
 
-        # Criação da review
+        # Criação da review (apenas para aprovação)
         review = CrCurriculo.objects.create(
             cr_utilizador_auth_user_supabase_field=cr,
             curriculo=curriculo,
@@ -289,18 +394,21 @@ class CRReviewSerializer(serializers.Serializer):
             review_date=curriculo.validated_date,
         )
         
+        # Guardar info do CV eliminado para resposta
+        review._cv_anterior_eliminado = cv_anterior_eliminado
+        
         # Enviar notificação assíncrona ao estudante
         try:
             send_cv_status_notification(
                 curriculo_id=curriculo.id,
-                status=status,
+                status=new_status,
                 feedback=feedback or "",
             )
             logger.info(
                 "Notificação de CV enviada para estudante %s (curriculo_id=%s, status=%s)",
                 curriculo.estudante_utilizador_auth_user_supabase_field.utilizador_auth_user_supabase_field.auth_user_supabase_id,
                 curriculo.id,
-                status,
+                new_status,
             )
         except Exception as e:
             logger.error(

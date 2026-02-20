@@ -140,6 +140,13 @@ class CurriculoViewSet(viewsets.ModelViewSet):
         
         # POST - Criar novo CV
         if request.method == 'POST':
+            
+            # Validação de consentimento (C9)
+            if not estudante.share_aceites:
+                return Response(
+                    {"detail": "Deves aceitar partilhar os dados para submeter o currículo."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             file = request.FILES.get("cv")
 
@@ -163,35 +170,66 @@ class CurriculoViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            # Verificar CVs existentes do estudante
+            cv_aprovado = Curriculo.objects.filter(
+                estudante_utilizador_auth_user_supabase_field=estudante,
+                status=Curriculo.CV_STATUS_APPROVED
+            ).first()
+            
+            cv_pendente = Curriculo.objects.filter(
+                estudante_utilizador_auth_user_supabase_field=estudante,
+                status=Curriculo.CV_STATUS_PENDING
+            ).first()
+            
+            # Se já existe CV pendente → erro (apenas 1 pendente permitido)
+            if cv_pendente:
+                return Response(
+                    {"detail": "Já existe um CV pendente de validação. Aguarde a validação ou elimine o CV pendente antes de submeter um novo."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             # upload para Supabase
             storage_service = SupabaseStorageService()
             bucket_name = "cvs"
-            file_path = f"estudante_{user_id}/cv.pdf"
+            
+            # Gerar path único para novo CV
+            import uuid
+            unique_id = uuid.uuid4().hex[:8]
+            file_path = f"estudante_{user_id}/cv_{unique_id}.pdf"
 
             try:
+                file.seek(0)
                 storage_service.upload_file(
                     file=file,
                     bucket_name=bucket_name,
                     file_path=file_path,
                 )
-            except StorageUploadException:
+            except StorageUploadException as e:
+                logger.error("Erro ao fazer upload do CV para estudante %s: %s", user_id, str(e))
                 return Response(
-                    {"detail": "Erro ao guardar o currículo."},
+                    {"detail": f"Erro ao guardar o currículo: {str(e)}"},
                     status=status.HTTP_503_SERVICE_UNAVAILABLE,
                 )
 
-            # criar/atualizar Curriculo
+            # Criar novo CV pendente
             try:
                 with transaction.atomic():
-                    # transação atómica
-                    curriculo, _ = Curriculo.objects.update_or_create(
+                    curriculo = Curriculo.objects.create(
                         estudante_utilizador_auth_user_supabase_field=estudante,
-                        defaults={
-                            "file": file_path,
-                            "status": 0,  # Pendente de validação
-                        },
+                        file=file_path,
+                        status=Curriculo.CV_STATUS_PENDING,
                     )
-            except Exception:
+                    
+                    logger.info(
+                        "Novo CV submetido para estudante %s (curriculo_id=%s, tem_cv_aprovado=%s)",
+                        user_id, curriculo.id, cv_aprovado is not None
+                    )
+                    message = "CV submetido com sucesso. Aguarda validação."
+                    if cv_aprovado:
+                        message = "Novo CV submetido. O CV aprovado atual mantém-se ativo até o novo ser aprovado."
+                        
+            except Exception as e:
+                logger.error("Erro ao registar CV para estudante %s: %s", user_id, str(e))
                 # rollback do storage
                 storage_service.delete_file(
                     bucket_name=bucket_name,
@@ -207,22 +245,64 @@ class CurriculoViewSet(viewsets.ModelViewSet):
                     "id": curriculo.id,
                     "file": file_path,
                     "status": curriculo.status,
+                    "message": message,
+                    "cv_aprovado_ativo": cv_aprovado.id if cv_aprovado else None,
                 },
                 status=status.HTTP_201_CREATED,
             )
-        # GET e DELETE - Buscar CV existente
-        try:
-            curriculo = Curriculo.objects.get(
-                estudante_utilizador_auth_user_supabase_field=estudante
-            )
-        except Curriculo.DoesNotExist:
+        # GET e DELETE - Buscar CVs do estudante
+        cv_aprovado = Curriculo.objects.filter(
+            estudante_utilizador_auth_user_supabase_field=estudante,
+            status=Curriculo.CV_STATUS_APPROVED
+        ).first()
+        
+        cv_pendente = Curriculo.objects.filter(
+            estudante_utilizador_auth_user_supabase_field=estudante,
+            status=Curriculo.CV_STATUS_PENDING
+        ).first()
+        
+        cv_rejeitado = Curriculo.objects.filter(
+            estudante_utilizador_auth_user_supabase_field=estudante,
+            status=Curriculo.CV_STATUS_REJECTED
+        ).order_by('-validated_date').first()
+        
+        if not cv_aprovado and not cv_pendente and not cv_rejeitado:
             return Response(
                 {"detail": "Currículo não encontrado. Por favor, submeta o seu CV."},
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # DELETE - Remover CV
+        # DELETE - Remover CV pendente (apenas pendente pode ser removido)
         if request.method == 'DELETE':
+            cv_id = request.query_params.get('cv_id')
+            
+            if cv_id:
+                # Remover CV específico
+                try:
+                    curriculo = Curriculo.objects.get(
+                        id=cv_id,
+                        estudante_utilizador_auth_user_supabase_field=estudante
+                    )
+                except Curriculo.DoesNotExist:
+                    return Response(
+                        {"detail": "CV não encontrado."},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            elif cv_pendente:
+                curriculo = cv_pendente
+            else:
+                return Response(
+                    {"detail": "Não existe CV pendente para remover. Use ?cv_id=X para especificar."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Não permitir remover CV aprovado se for o único
+            if curriculo.status == Curriculo.CV_STATUS_APPROVED and not cv_pendente:
+                return Response(
+                    {"detail": "Não pode remover o CV aprovado sem ter um pendente a substituí-lo."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             storage_service = SupabaseStorageService()
             bucket_name = "cvs"
             file_path = curriculo.file
@@ -241,27 +321,42 @@ class CurriculoViewSet(viewsets.ModelViewSet):
                 )
 
             # remover registo do BD
+            logger.info("CV removido pelo estudante %s (curriculo_id=%s)", user_id, curriculo.id)
             self.perform_destroy(curriculo)
             return Response(
-                {"message": "Currículo eliminado com sucesso. Crie novo CV se desejar."},
+                {"message": "Currículo eliminado com sucesso."},
                 status=status.HTTP_204_NO_CONTENT
             )
         
-        # GET - Retornar CV (com signed_url se aprovado)
-        serializer = self.get_serializer(curriculo)
-        response_data = serializer.data
+        # GET - Retornar todos os CVs do estudante
+        response_data = {
+            "cv_aprovado": None,
+            "cv_pendente": None,
+            "cv_rejeitado": None,
+        }
         
-        # Adicionar mensagem baseada no status
-        if curriculo.status == 0:
-            response_data['message'] = "O seu currículo está pendente de validação."
-        elif curriculo.status == 2:
-            response_data['message'] = "O seu currículo foi rejeitado. Por favor, submeta um novo CV."
-        elif curriculo.status == 1:
-            # CV aprovado - adicionar signed_url
-            cv_service = CVService()
-            response_data['signed_url'] = cv_service.get_signed_url_for_curriculo(curriculo, user_id, request.role)
-            response_data['expires_in_seconds'] = 900
-            response_data['message'] = "O seu currículo está aprovado."
+        cv_service = CVService()
+        
+        if cv_aprovado:
+            serializer = self.get_serializer(cv_aprovado)
+            cv_data = serializer.data
+            cv_data['signed_url'] = cv_service.get_signed_url_for_curriculo(cv_aprovado, user_id, request.role)
+            cv_data['expires_in_seconds'] = 900
+            cv_data['message'] = "CV aprovado e ativo."
+            response_data['cv_aprovado'] = cv_data
+        
+        if cv_pendente:
+            serializer = self.get_serializer(cv_pendente)
+            cv_data = serializer.data
+            cv_data['message'] = "CV pendente de validação."
+            response_data['cv_pendente'] = cv_data
+        
+        if cv_rejeitado and not cv_aprovado and not cv_pendente:
+            # Mostrar último rejeitado apenas se não houver outros
+            serializer = self.get_serializer(cv_rejeitado)
+            cv_data = serializer.data
+            cv_data['message'] = "CV rejeitado. Por favor, submeta um novo CV."
+            response_data['cv_rejeitado'] = cv_data
         
         return Response(response_data, status=status.HTTP_200_OK)
 
@@ -415,11 +510,11 @@ class CurriculoViewSet(viewsets.ModelViewSet):
 
         try:
             with transaction.atomic():
-                review = serializer.save()
+                result = serializer.save()
         except Exception as exc:
             logger.error(
                 "Erro ao validar currículo %s por CR %s: %s",
-                curriculo.id,
+                pk,
                 request.user_id,
                 str(exc),
             )
@@ -428,14 +523,23 @@ class CurriculoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+        # Se foi rejeição, o CV foi eliminado e result é um dict
+        if isinstance(result, dict):
+            logger.info(
+                "Currículo %s rejeitado e eliminado por CR %s",
+                result.get("curriculo_id"),
+                request.user_id,
+            )
+            return Response(result, status=status.HTTP_200_OK)
+
+        # Aprovação - result é um CrCurriculo
         logger.info(
-            "Currículo %s validado por CR %s com status %s",
-            curriculo.id,
+            "Currículo %s aprovado por CR %s",
+            pk,
             request.user_id,
-            curriculo.status,
         )
 
-        response_serializer = CRReviewResponseSerializer(review)
+        response_serializer = CRReviewResponseSerializer(result)
         return Response(
             response_serializer.data,
             status=status.HTTP_200_OK
