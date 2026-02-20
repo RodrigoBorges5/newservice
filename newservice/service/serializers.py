@@ -93,10 +93,11 @@ class CurriculoSerializer(serializers.ModelSerializer):
             'file',
             'status',
             'descricao',
+            'creation_date',
             'validated_date',
             'estudante_utilizador_auth_user_supabase_field'
             ]
-        read_only_fields = ['id', 'status', 'validated_date']
+        read_only_fields = ['id', 'status', 'creation_date', 'validated_date']
         extra_kwargs = {
             'file': {'required': True, 'allow_blank': False}
         }
@@ -118,6 +119,8 @@ class CurriculoSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         if 'status' not in validated_data:
             validated_data['status'] = 0  
+        if 'creation_date' not in validated_data:
+            validated_data['creation_date'] = timezone.now().date()
         return super().create(validated_data)
 
 
