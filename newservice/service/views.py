@@ -221,6 +221,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
                         estudante_utilizador_auth_user_supabase_field=estudante,
                         file=file_path,
                         status=Curriculo.CV_STATUS_PENDING,
+                        creation_date=timezone.now().date(),
                     )
                     
                     logger.info(
@@ -248,6 +249,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
                     "id": curriculo.id,
                     "file": file_path,
                     "status": curriculo.status,
+                    "creation_date": curriculo.creation_date,
                     "message": message,
                     "cv_aprovado_ativo": cv_aprovado.id if cv_aprovado else None,
                 },
