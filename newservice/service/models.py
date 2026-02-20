@@ -107,6 +107,7 @@ class Curriculo(models.Model):
     status = models.IntegerField(choices=CV_STATUS_CHOICES, default=CV_STATUS_PENDING)
     #usar curriculo.get_status_display() para obter a descrição do status
     descricao = models.TextField(blank=True, null=True)
+    creation_date = models.DateField(blank=True, null=True)
     validated_date = models.DateField(blank=True, null=True)
     # ForeignKey permite múltiplos CVs por estudante (pendentes + aprovado)
     estudante_utilizador_auth_user_supabase_field = models.ForeignKey(

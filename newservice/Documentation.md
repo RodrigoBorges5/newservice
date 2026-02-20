@@ -453,9 +453,85 @@ Header de autenticação em falta – 401 Unauthorized
 }
 ```
 
-### Observações
+**Observações**
 
 * Um currículo só pode ser validado **uma única vez**
 * Cada currículo possui no máximo **uma review**
 * A validação é uma operação irreversível
 * Notificações são enviadas automaticamente após aprovação ou rejeição
+
+### GET /curriculo/stats/
+
+**Descrição:**
+Retorna estatísticas agregadas sobre os currículos do sistema. Inclui contagem total, validados, aprovados, rejeitados e tempo médio de validação.
+
+**Permissão:**
+
+* **CR (role=0)** – Apenas utilizadores com role CR podem aceder.
+* **Empresa (role=1)** / **Estudante (role=2)** – Acesso negado.
+
+**Headers obrigatórios:**
+
+```
+X-User-ID: <uuid-do-cr>
+```
+
+---
+
+## Resposta
+
+**Exemplo (200 OK):**
+
+```json
+{
+  "total": 120,
+  "validated_total": 80,
+  "approved": 50,
+  "rejected": 30,
+  "pending": 40,
+  "avg_validation_days": 2.5
+}
+```
+
+| Campo                 | Tipo  | Descrição                                                            |
+| --------------------- | ----- | -------------------------------------------------------------------- |
+| `total`               | int   | Número total de currículos registados                                |
+| `validated_total`     | int   | Número de currículos validados (aprovados + rejeitados)              |
+| `approved`            | int   | Número de currículos aprovados                                       |
+| `rejected`            | int   | Número de currículos rejeitados                                      |
+| `pending`             | int   | Número de currículos pendentes (não validados)                       |
+| `avg_validation_days` | float | Tempo médio de validação em dias (somente para currículos validados) |
+
+---
+
+## Erros
+
+| Código                    | Descrição                        |
+| ------------------------- | -------------------------------- |
+| 401 Unauthorized          | Header `X-User-ID` em falta      |
+| 403 Forbidden             | Utilizador não possui role CR    |
+| 500 Internal Server Error | Erro no cálculo das estatísticas |
+
+**Exemplo de erro (403 Forbidden):**
+
+```json
+{
+  "detail": "Não possui permissão para efetuar esta ação."
+}
+```
+
+**Exemplo de erro (401 Unauthorized):**
+
+```json
+{
+  "detail": "Header X-User-ID em falta"
+}
+```
+
+---
+
+## Observações
+
+* As estatísticas consideram apenas currículos existentes na base de dados.
+* O tempo médio de validação (`avg_validation_days`) é calculado apenas entre as datas `validated_date` e a data de criação (`created_at`).
+* Endpoint destinado exclusivamente para utilizadores CR (role=0).
