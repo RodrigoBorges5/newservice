@@ -109,7 +109,13 @@ class Curriculo(models.Model):
     descricao = models.TextField(blank=True, null=True)
     creation_date = models.DateField(blank=True, null=True)
     validated_date = models.DateField(blank=True, null=True)
-    estudante_utilizador_auth_user_supabase_field = models.OneToOneField('Estudante', models.DO_NOTHING, db_column='estudante_utilizador_auth_user_supabase__id')  # Field renamed because it ended with '_'.
+    # ForeignKey permite múltiplos CVs por estudante (pendentes + aprovado)
+    estudante_utilizador_auth_user_supabase_field = models.ForeignKey(
+        'Estudante',
+        models.DO_NOTHING,
+        db_column='estudante_utilizador_auth_user_supabase__id',
+        related_name='curriculos'
+    )
 
     def is_pending(self):
         return self.status == self.CV_STATUS_PENDING
