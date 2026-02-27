@@ -20,7 +20,6 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-from django.tasks import task
 
 from .models import Curriculo, Notification
 
@@ -48,6 +47,7 @@ def _get_student_email(user_uuid: str) -> str:
         ValueError: Se o email não for encontrado e DEBUG=False.
     """
     from service.supabase_client import get_user_email
+
     return get_user_email(user_uuid)
 
 
@@ -78,6 +78,10 @@ def send_cv_status_notification(
     curriculo_id: int,
     status: int,
     feedback: str = "",
+    *,
+    recipient_email: str | None = None,
+    recipient_name: str | None = None,
+    recipient_uuid: str | None = None,
 ) -> dict:
     """
     Task assíncrona que envia notificação por email ao estudante
@@ -88,6 +92,12 @@ def send_cv_status_notification(
         status: Novo status (1=Aprovado, 2=Rejeitado).
         feedback: Comentário do CR (opcional para aprovação,
                   obrigatório para rejeição).
+        recipient_email: Email do estudante (opcional — se fornecido,
+                         evita lookup no Supabase Auth).
+        recipient_name: Nome do estudante (opcional — se fornecido,
+                        evita lookup no BD).
+        recipient_uuid: UUID do utilizador (opcional — se fornecido,
+                        evita lookup no BD).
 
     Returns:
         Dicionário com resultado do envio:
@@ -114,20 +124,26 @@ def send_cv_status_notification(
         raise ValueError(msg)
 
     # ── Procurar currículo e dados do estudante ────────────────────────
-    try:
-        curriculo = Curriculo.objects.select_related(
-            "estudante_utilizador_auth_user_supabase_field"
-            "__utilizador_auth_user_supabase_field"
-        ).get(id=curriculo_id)
-    except Curriculo.DoesNotExist:
-        msg = f"Currículo com ID {curriculo_id} não encontrado."
-        logger.error("%s %s", log_prefix, msg)
-        raise ValueError(msg)
+    # Se os dados do estudante foram fornecidos (e.g. CV já eliminado),
+    # usá-los directamente; caso contrário, fazer lookup na BD.
+    user_uuid = recipient_uuid
+    nome_estudante = recipient_name or "Estudante"
 
-    estudante = curriculo.estudante_utilizador_auth_user_supabase_field
-    utilizador = estudante.utilizador_auth_user_supabase_field
-    user_uuid = str(utilizador.auth_user_supabase_id)
-    nome_estudante = utilizador.nome or "Estudante"
+    if not user_uuid:
+        try:
+            curriculo = Curriculo.objects.select_related(
+                "estudante_utilizador_auth_user_supabase_field"
+                "__utilizador_auth_user_supabase_field"
+            ).get(id=curriculo_id)
+        except Curriculo.DoesNotExist:
+            msg = f"Currículo com ID {curriculo_id} não encontrado e dados do estudante não fornecidos."
+            logger.error("%s %s", log_prefix, msg)
+            raise ValueError(msg)
+
+        estudante = curriculo.estudante_utilizador_auth_user_supabase_field
+        utilizador = estudante.utilizador_auth_user_supabase_field
+        user_uuid = str(utilizador.auth_user_supabase_id)
+        nome_estudante = recipient_name or utilizador.nome or "Estudante"
 
     logger.info(
         "%s A iniciar envio – status=%s, estudante=%s",
@@ -136,28 +152,30 @@ def send_cv_status_notification(
         nome_estudante,
     )
 
-    # ── Obter email via Supabase Auth ────────────────────────────────
-    try:
-        email = _get_student_email(user_uuid)
-    except Exception as e:
-        logger.error("%s Falha ao obter email: %s", log_prefix, e)
-        # Registar notificação falhada (sem email)
-        Notification.objects.create(
-            recipient_user_id=user_uuid,
-            recipient_email="",
-            type="cv_status_change",
-            subject=f"CV {STATUS_LABELS.get(status, str(status))}",
-            status="failed",
-            error_message=f"Falha ao obter email: {e}",
-            curriculo_id=curriculo_id,
-        )
-        return {
-            "success": False,
-            "curriculo_id": curriculo_id,
-            "status": STATUS_LABELS.get(status, str(status)),
-            "email": None,
-            "message": f"Falha ao obter email: {e}",
-        }
+    # ── Obter email via Supabase Auth (ou usar o fornecido) ────────────
+    email = recipient_email
+    if not email:
+        try:
+            email = _get_student_email(user_uuid)
+        except Exception as e:
+            logger.error("%s Falha ao obter email: %s", log_prefix, e)
+            # Registar notificação falhada (sem email)
+            Notification.objects.create(
+                recipient_user_id=user_uuid,
+                recipient_email="",
+                type="cv_status_change",
+                subject=f"CV {STATUS_LABELS.get(status, str(status))}",
+                status="failed",
+                error_message=f"Falha ao obter email: {e}",
+                curriculo_id=curriculo_id,
+            )
+            return {
+                "success": False,
+                "curriculo_id": curriculo_id,
+                "status": STATUS_LABELS.get(status, str(status)),
+                "email": None,
+                "message": f"Falha ao obter email: {e}",
+            }
 
     # ── Preparar contexto e renderizar template ──────────────────────
     site_url = getattr(settings, "SITE_URL", "http://localhost:8000")

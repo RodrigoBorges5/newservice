@@ -114,7 +114,7 @@ class CurriculoViewSet(viewsets.ModelViewSet):
         if self.action == 'get_my_cv':
             # Estudante acede ao seu próprio CV
             permission_classes = [IsStudent]
-        elif self.action in ['access_history', 'review']:
+        elif self.action in ['access_history', 'review', 'stats']:
             permission_classes = [IsCR]
         elif self.action in ['view_cv']:
             permission_classes = [IsAll]
