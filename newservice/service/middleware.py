@@ -4,8 +4,12 @@ from .supabase_client import (
     UserNotFoundError,
     InvalidUserRoleError,
 )
+from .models import Estudante, Empresa, Cr
 from rest_framework.permissions import BasePermission
+from rest_framework.exceptions import AuthenticationFailed
 import logging
+import jwt
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +62,56 @@ class UserHeaderMiddleware:
 
         return self.get_response(request)
 
+class SupabaseAuthMiddleware:
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+
+        auth = request.headers.get("Authorization")
+
+        if not auth:
+            request.user_id = None
+            request.role = None
+            return self.get_response(request)
+
+        try:
+            token = auth.replace("Bearer ", "")
+
+            payload = jwt.decode(
+                token,
+                settings.SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                audience="authenticated"
+            )
+
+            user_id = payload["sub"]
+            request.user_id = user_id
+            request.role = self.resolve_role(user_id)
+
+        except jwt.ExpiredSignatureError:
+            raise AuthenticationFailed("Token expirado")
+        except Exception as e:
+            return JsonResponse({"detail": f"Token inválido: {str(e)}"}, status=401)
+
+        return self.get_response(request)
+
+    def resolve_role(self, user_id):
+        from service.models import Estudante, Empresa
+
+        if Estudante.objects.filter(
+            utilizador_auth_user_supabase_field=user_id
+        ).exists():
+            return 2  # Student
+
+        if Empresa.objects.filter(
+            utilizador_auth_user_supabase_field=user_id
+        ).exists():
+            return 1  # Company
+
+        return 0  # CR
+    
 class IsStudent(BasePermission):
     message = "Não possui permição para efetuar esta ação."
 

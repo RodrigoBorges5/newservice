@@ -52,8 +52,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # CORS antes do CommonMiddleware
-    "service.middleware.UserHeaderMiddleware",
+    'corsheaders.middleware.CorsMiddleware',
+    "service.middleware.SupabaseAuthMiddleware",  # Middleware de autenticação alterado para o supabase, é possivel alterar para X-User-ID
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -161,6 +161,7 @@ REST_FRAMEWORK = {
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 #file configuration
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 ALLOWED_MIME = "application/pdf"
